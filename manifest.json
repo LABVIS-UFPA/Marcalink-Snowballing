@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Highlight Links",
+  "version": "1.0",
+  "description": "Marca links com outra cor ao clicar com o botão direito.",
+  "permissions": ["contextMenus", "scripting", "storage", "unlimitedStorage"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_page": "options.html",
+  "host_permissions": ["<all_urls>"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
