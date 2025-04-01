@@ -7,8 +7,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const removeLinks = document.getElementById("removeLinks");
     const downloadStorage = document.getElementById("downloadStorage");
     const uploadStorage = document.getElementById("uploadStorage");
+    const checkOnOff = document.getElementById("checkOnOff");
     
   
+    function loadOnOff(){
+      chrome.storage.local.get("active", (data) => {
+        checkOnOff.checked = data.active;
+      });
+    }
     function loadCategories() {
       chrome.storage.local.get("categories", (data) => {
         categoryList.innerHTML = "";
@@ -37,6 +43,12 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
   
+
+    checkOnOff.addEventListener("change", () => {
+      chrome.storage.local.set({active: checkOnOff.checked}, function () {
+        console.log(checkOnOff.checked?"Ativo.":"Desativado.");
+      });
+    });
     addCategoryButton.addEventListener("click", () => {
       const name = categoryNameInput.value.trim();
       const color = categoryColorInput.value;
@@ -56,26 +68,26 @@ document.addEventListener("DOMContentLoaded", () => {
           const highlightedLinks = {};
           chrome.storage.local.set({ highlightedLinks });
         });
-      });
+    });
   
 
-      downloadStorage.addEventListener("click", () => {
-        chrome.storage.local.get(null, function (data) {
-          const jsonString = JSON.stringify(data, null, 2);
-          const blob = new Blob([jsonString], { type: "application/json" });
-          const url = URL.createObjectURL(blob);
+    downloadStorage.addEventListener("click", () => {
+      chrome.storage.local.get(null, function (data) {
+        const jsonString = JSON.stringify(data, null, 2);
+        const blob = new Blob([jsonString], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
 
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = "storage_backup.json";
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-      });
-      });
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "storage_backup.json";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    });
+    });
 
-      uploadStorage.addEventListener("change", function (event) {
+    uploadStorage.addEventListener("change", function (event) {
         if (!confirm("Tem certeza de que deseja fazer upload deste arquivo? Isso pode sobrescrever os dados existentes.")) return;
         
         const file = event.target.files[0];
@@ -96,7 +108,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
 
-
+    loadOnOff();
     loadCategories();
     loadHighlightedLinks();
 
