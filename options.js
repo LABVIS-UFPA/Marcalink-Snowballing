@@ -2,8 +2,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const categoryNameInput = document.getElementById("categoryName");
     const categoryColorInput = document.getElementById("categoryColor");
     const addCategoryButton = document.getElementById("addCategory");
+    const seedDefaultCategoriesButton = document.getElementById("seedDefaultCategories");
     const categoryList = document.getElementById("categoryList");
     const highlightedList = document.getElementById("highlightedList");
+    const highlightSearch = document.getElementById("highlightSearch");
     const removeLinks = document.getElementById("removeLinks");
     const downloadStorage = document.getElementById("downloadStorage");
     const uploadStorage = document.getElementById("uploadStorage");
@@ -19,27 +21,165 @@ document.addEventListener("DOMContentLoaded", () => {
       chrome.storage.local.get("categories", (data) => {
         categoryList.innerHTML = "";
         const categories = data.categories || {};
-        for (const category in categories) {
+        const names = Object.keys(categories).sort((a,b) => a.localeCompare(b));
+
+        function removeCategory(name) {
+          chrome.storage.local.get("categories", (d) => {
+            const cats = d.categories || {};
+            if (!cats[name]) return;
+            delete cats[name];
+            chrome.storage.local.set({ categories: cats }, () => {
+              chrome.runtime.sendMessage({ action: "updateContextMenu" });
+              loadCategories();
+            });
+          });
+        }
+
+        for (const category of names) {
+          const color = categories[category];
+
           const li = document.createElement("li");
-          li.textContent = `${category} - ${categories[category]}`;
-          li.style.backgroundColor = categories[category];
+          li.style.backgroundColor = color;
+          li.style.display = "flex";
+          li.style.alignItems = "center";
+          li.style.gap = "8px";
+          li.style.padding = "6px";
+
+          const label = document.createElement("span");
+          label.textContent = category;
+          label.style.fontWeight = "600";
+          label.style.flex = "1";
+
+          const meta = document.createElement("span");
+          meta.textContent = color;
+          meta.style.fontFamily = "monospace";
+          meta.style.fontSize = "12px";
+
+          const btn = document.createElement("button");
+          btn.textContent = "Excluir";
+          btn.addEventListener("click", () => {
+            if (!confirm(`Excluir a categoria "${category}"?`)) return;
+            removeCategory(category);
+          });
+
+          li.appendChild(label);
+          li.appendChild(meta);
+          li.appendChild(btn);
+
           categoryList.appendChild(li);
         }
+
         chrome.runtime.sendMessage({ action: "updateContextMenu" });
       });
     }
+    function normalizeUrl(url) {
+      return (url || "").replace(/[\?\&]casa\_token=\S+/i, "");
+    }
+
+    function deleteMarkedLink(urlToDelete, done) {
+      const target = normalizeUrl(urlToDelete);
+      chrome.storage.local.get(["highlightedLinks", "svat_papers"], (data) => {
+        const highlightedLinks = data.highlightedLinks || {};
+        // Remove chaves que batem com a URL (com e sem casa_token)
+        for (const k of Object.keys(highlightedLinks)) {
+          const nk = normalizeUrl(k);
+          if (k === urlToDelete || nk === target || nk.startsWith(target) || target.startsWith(nk)) {
+            delete highlightedLinks[k];
+          }
+        }
+
+        // Remover também do SVAT (para não ficar lixo no dashboard)
+        const papers = Array.isArray(data.svat_papers) ? data.svat_papers : [];
+        const filteredPapers = papers.filter(p => normalizeUrl(p?.url) !== target);
+
+        chrome.storage.local.set({ highlightedLinks, svat_papers: filteredPapers }, () => {
+          done && done();
+        });
+      });
+    }
+
     function loadHighlightedLinks(){
-        chrome.storage.local.get(["categories", "highlightedLinks"], (data) => {
+        chrome.storage.local.get(["highlightedLinks", "svat_papers"], (data) => {
             highlightedList.innerHTML = "";
             const links = data.highlightedLinks || {};
-            console.log(data)
-            for (const link in links) {
+
+            // Mapa URL normalizada -> título (para mostrar algo mais amigável que só a URL)
+            const papers = Array.isArray(data.svat_papers) ? data.svat_papers : [];
+            const titleByUrl = new Map();
+            for (const p of papers) {
+              const nu = normalizeUrl(p?.url);
+              if (!nu) continue;
+              const t = (p?.title || "").trim();
+              if (t) titleByUrl.set(nu, t);
+            }
+
+            const q = (highlightSearch?.value || "").trim().toLowerCase();
+
+            const items = Object.keys(links)
+              .map(url => {
+                const nurl = normalizeUrl(url);
+                const title = titleByUrl.get(nurl) || "";
+                return { url, nurl, title, color: links[url] };
+              })
+              .filter(it => {
+                if (!q) return true;
+                return (it.url || "").toLowerCase().includes(q) || (it.title || "").toLowerCase().includes(q);
+              });
+
+            // Mostra botão "Resetar" se houver algo
+            removeLinks.style.display = items.length ? "inline-block" : "none";
+
+            for (const it of items) {
                 const li = document.createElement("li");
-                li.textContent = `${link} - ${links[link]}`;
-                li.style.backgroundColor = links[link];
+                li.style.backgroundColor = it.color;
+                li.style.display = "flex";
+                li.style.alignItems = "center";
+                li.style.gap = "8px";
+                li.style.padding = "6px";
+
+                const linkWrap = document.createElement("div");
+                linkWrap.style.flex = "1";
+                linkWrap.style.display = "flex";
+                linkWrap.style.flexDirection = "column";
+                linkWrap.style.gap = "2px";
+
+                const a = document.createElement("a");
+                a.href = it.url;
+                a.textContent = it.title ? it.title : it.url;
+                a.target = "_blank";
+                a.rel = "noreferrer";
+                a.style.fontWeight = it.title ? "600" : "400";
+                a.style.overflowWrap = "anywhere";
+
+                const urlSmall = document.createElement("div");
+                if (it.title) {
+                  urlSmall.textContent = it.url;
+                  urlSmall.style.fontSize = "12px";
+                  urlSmall.style.opacity = "0.85";
+                  urlSmall.style.overflowWrap = "anywhere";
+                }
+
+                linkWrap.appendChild(a);
+                if (it.title) linkWrap.appendChild(urlSmall);
+
+                const meta = document.createElement("span");
+                meta.textContent = it.color;
+                meta.style.fontFamily = "monospace";
+                meta.style.fontSize = "12px";
+
+                const btn = document.createElement("button");
+                btn.textContent = "Excluir";
+                btn.addEventListener("click", () => {
+                  if (!confirm("Excluir este link marcado?")) return;
+                  deleteMarkedLink(it.url, () => loadHighlightedLinks());
+                });
+
+                li.appendChild(linkWrap);
+                li.appendChild(meta);
+                li.appendChild(btn);
+
                 highlightedList.appendChild(li);
             }
-            // chrome.runtime.sendMessage({ action: "updateContextMenu" });
         });
     }
   
@@ -49,7 +189,18 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log(checkOnOff.checked?"Ativo.":"Desativado.");
       });
     });
-    addCategoryButton.addEventListener("click", () => {
+    
+    if (seedDefaultCategoriesButton) {
+      seedDefaultCategoriesButton.addEventListener("click", () => {
+        chrome.runtime.sendMessage({ action: "seedDefaultCategories" }, () => {
+          // Recarrega lista para o usuário ver as categorias padrão
+          loadCategories();
+          alert("Categorias padrão de Snowballing criadas/mescladas!");
+        });
+      });
+    }
+
+addCategoryButton.addEventListener("click", () => {
       const name = categoryNameInput.value.trim();
       const color = categoryColorInput.value;
       if (!name) return;
@@ -64,11 +215,15 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
     removeLinks.addEventListener("click", () => {
-        chrome.storage.local.get("highlightedLinks", (data) => {
-          const highlightedLinks = {};
-          chrome.storage.local.set({ highlightedLinks });
+        if (!confirm("Tem certeza que deseja remover TODOS os links marcados?")) return;
+        chrome.storage.local.set({ highlightedLinks: {}, svat_papers: [] }, () => {
+          loadHighlightedLinks();
         });
     });
+
+    if (highlightSearch) {
+      highlightSearch.addEventListener("input", () => loadHighlightedLinks());
+    }
   
 
     downloadStorage.addEventListener("click", () => {

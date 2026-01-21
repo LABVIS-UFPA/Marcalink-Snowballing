@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Marcalink Snowballing</title>
+    <style>
+      body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;margin:0;width:340px;background:#fff;color:#111}
+      header{padding:12px 12px 8px;border-bottom:1px solid #eee}
+      header h1{font-size:14px;margin:0}
+      header p{font-size:12px;margin:4px 0 0;color:#666}
+      .wrap{padding:12px;display:flex;flex-direction:column;gap:8px}
+      button{appearance:none;border:1px solid #ddd;border-radius:10px;background:#fafafa;padding:10px 12px;font-size:13px;text-align:left;cursor:pointer}
+      button:hover{background:#f2f2f2}
+      .row{display:flex;gap:8px}
+      .row button{flex:1}
+      .muted{font-size:11px;color:#666;margin-top:6px}
+      .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:6px}
+      .kpi{border:1px solid #eee;border-radius:10px;padding:8px}
+      .kpi .n{font-weight:700;font-size:14px}
+      .kpi .l{font-size:10px;color:#666}
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Marcalink Snowballing</h1>
+      <p id="proj">Projeto: —</p>
+      <div class="kpis">
+        <div class="kpi"><div class="n" id="k_total">0</div><div class="l">Total</div></div>
+        <div class="kpi"><div class="n" id="k_inc">0</div><div class="l">Incl.</div></div>
+        <div class="kpi"><div class="n" id="k_exc">0</div><div class="l">Excl.</div></div>
+        <div class="kpi"><div class="n" id="k_pen">0</div><div class="l">Pend.</div></div>
+      </div>
+    </header>
+    <div class="wrap">
+      <button id="openDashboard">📊 Abrir Dashboard</button>
+      <div class="row">
+        <button id="exportJson">⬇️ Exportar JSON</button>
+        <button id="importJson">⬆️ Importar JSON</button>
+      </div>
+      <div class="row">
+        <button id="openOptions">⚙️ Configurações</button>
+        <button id="clearData" title="Remove papers/citations/iterations/criteria">🧹 Limpar</button>
+      </div>
+      <div class="muted">Dica: marque um artigo com botão direito → “Marcar link” → categoria.</div>
+      <input id="file" type="file" accept="application/json" style="display:none" />
+    </div>
+    <script src="svat_storage.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>
