@@ -1,4 +1,3 @@
-
 :root{
   --bg: #bfbfbf;
   --topbar: #606060;
@@ -99,6 +98,9 @@ body{
 .bar-red{background:#ff5a5a}
 .bar-blue{background:#2d77ff}
 .bar-yellow{background:#ffd84d}
+
+/* ✅ NOVO: barra roxa (Server) */
+.bar-purple{background: var(--border)}
 
 .sideSpacer{flex:1}
 
@@ -288,4 +290,20 @@ body{
 .list li button.dark{
   background: rgba(255,255,255,0.18);
   color: #101010;
+}
+
+/* ✅ NOVO: log do Server */
+.serverLog{
+  margin: 0;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(0,0,0,0.35);
+  color: var(--text);
+  min-height: 180px;
+  max-height: 260px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: pre-wrap;
 }

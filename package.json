@@ -1,0 +1,25 @@
+{
+  "name": "marcalink-snowballing",
+  "version": "1.0.0",
+  "description": "plugin do chrome para marcação de links. Ajudará no processo de snowballing de artigos no google acadêmico.",
+  "main": "background.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LABVIS-UFPA/Marcalink-Snowballing.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/LABVIS-UFPA/Marcalink-Snowballing/issues"
+  },
+  "homepage": "https://github.com/LABVIS-UFPA/Marcalink-Snowballing#readme",
+  "dependencies": {
+    "ws": "^8.19.0"
+  }
+}
