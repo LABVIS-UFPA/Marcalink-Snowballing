@@ -49,11 +49,14 @@ document.addEventListener("DOMContentLoaded", () => {
           label.textContent = category;
           label.style.fontWeight = "600";
           label.style.flex = "1";
+          label.style.color = getLuminanceFromHex(color) < 0.5 ? "#fff" : "#000";
 
           const meta = document.createElement("span");
           meta.textContent = color;
           meta.style.fontFamily = "monospace";
           meta.style.fontSize = "12px";
+          meta.style.color = getLuminanceFromHex(color) < 0.5 ? "#fff" : "#000";
+
 
           const btn = document.createElement("button");
           btn.textContent = "Excluir";
@@ -61,6 +64,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!confirm(`Excluir a categoria "${category}"?`)) return;
             removeCategory(category);
           });
+          btn.style.color = getLuminanceFromHex(color) < 0.5 ? "#fff" : "#000";
+          if(getLuminanceFromHex(color) >= 0.5) btn.classList.add("dark");
 
           li.appendChild(label);
           li.appendChild(meta);
@@ -150,6 +155,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 a.rel = "noreferrer";
                 a.style.fontWeight = it.title ? "600" : "400";
                 a.style.overflowWrap = "anywhere";
+                a.style.color = getLuminanceFromHex(it.color) < 0.5 ? "#fff" : "#000";
 
                 const urlSmall = document.createElement("div");
                 if (it.title) {
@@ -166,6 +172,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 meta.textContent = it.color;
                 meta.style.fontFamily = "monospace";
                 meta.style.fontSize = "12px";
+                meta.style.color = getLuminanceFromHex(it.color) < 0.5 ? "#fff" : "#000";
 
                 const btn = document.createElement("button");
                 btn.textContent = "Excluir";
@@ -173,6 +180,8 @@ document.addEventListener("DOMContentLoaded", () => {
                   if (!confirm("Excluir este link marcado?")) return;
                   deleteMarkedLink(it.url, () => loadHighlightedLinks());
                 });
+                btn.style.color = getLuminanceFromHex(it.color) < 0.5 ? "#fff" : "#000";
+                if(getLuminanceFromHex(it.color) >= 0.5) btn.classList.add("dark");
 
                 li.appendChild(linkWrap);
                 li.appendChild(meta);
@@ -268,3 +277,30 @@ addCategoryButton.addEventListener("click", () => {
     loadHighlightedLinks();
 
   });
+
+
+  function getLuminanceFromHex(hex) {
+    // Expand shorthand form (e.g. "#03F") to full form (e.g. "#0033FF")
+    const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+    hex = hex.replace(shorthandRegex, function(m, r, g, b) {
+        return r + r + g + g + b + b;
+    });
+
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+
+    if (!result) return 0; // Return 0 if hex is invalid
+
+    // Convert hex components to RGB decimals
+    let r = parseInt(result[1], 16) / 255;
+    let g = parseInt(result[2], 16) / 255;
+    let b = parseInt(result[3], 16) / 255;
+
+    // Apply the WCAG luminance formula for linear RGB
+    r = r <= 0.03928 ? r / 12.92 : Math.pow((r + 0.055) / 1.055, 2.4);
+    g = g <= 0.03928 ? g / 12.92 : Math.pow((g + 0.055) / 1.055, 2.4);
+    b = b <= 0.03928 ? b / 12.92 : Math.pow((b + 0.055) / 1.055, 2.4);
+
+    const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+    return luminance;
+}

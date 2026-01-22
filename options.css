@@ -137,6 +137,11 @@ input[type="color"]{
   font-weight:900;
 }
 
+#categoryList li button.dark, #highlightedList li button.dark{
+  border: 1px solid rgba(0, 0, 0, 0.24);
+  background: rgba(0, 0, 0, 0.12);
+}
+
 #categoryList li button:hover, #highlightedList li button:hover{
   background: rgba(255,255,255,0.18);
 }
