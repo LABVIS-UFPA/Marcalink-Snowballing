@@ -304,3 +304,25 @@ addCategoryButton.addEventListener("click", () => {
 
     return luminance;
 }
+
+// ---- Navegação lateral (layout da página de configurações) ----
+document.addEventListener("DOMContentLoaded", () => {
+  const buttons = Array.from(document.querySelectorAll(".sideItem[data-target]"));
+  const panels = Array.from(document.querySelectorAll(".panel[id]"));
+
+  function activate(targetId) {
+    panels.forEach(p => p.classList.toggle("active", p.id === targetId));
+    buttons.forEach(b => b.classList.toggle("active", b.dataset.target === targetId));
+  }
+
+  buttons.forEach(btn => {
+    btn.addEventListener("click", () => activate(btn.dataset.target));
+  });
+
+  // Abre painel via hash (#panel-links, etc.)
+  if (location.hash) {
+    const id = location.hash.replace("#", "");
+    if (panels.some(p => p.id === id)) activate(id);
+  }
+});
+

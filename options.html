@@ -8,103 +8,136 @@
     <script defer src="options.js"></script>
   </head>
   <body>
-    <header class="pageHeader">
-      <div class="brand">
-        <div class="logo">SVAT</div>
-        <div>
-          <div class="brandTitle">Configurações</div>
-          <div class="brandSub">Marcalink • Snowballing manual no Google Scholar</div>
-        </div>
-      </div>
-
-      <div class="headerActions">
-        <label class="toggle">
-          <input type="checkbox" id="checkOnOff" />
-          <span>Ativar extensão</span>
-        </label>
-      </div>
-    </header>
-
-    <main class="container">
-      <section class="grid">
-        <div class="card">
-          <div class="cardHead">
-            <h2>Categorias</h2>
-            <p>Crie cores para marcar artigos no Scholar. As categorias padrão (Seed/Backward/Forward…) ajudam no snowballing.</p>
+    <div class="layout">
+      <header class="topbar">
+        <div class="brand">
+          <div class="logo">SVAT</div>
+          <div class="brandText">
+            <div class="brandTitle">Configurações</div>
+            <div class="brandSub">Marcalink • Snowballing manual no Google Scholar</div>
           </div>
+        </div>
 
-          <div class="row">
-            <div class="field">
-              <label for="categoryName">Nome</label>
-              <input type="text" id="categoryName" placeholder="Ex.: Seed" />
+        <div class="topbarActions">
+          <label class="toggle">
+            <input type="checkbox" id="checkOnOff" />
+            <span>Ativar extensão</span>
+          </label>
+        </div>
+      </header>
+
+      <div class="main">
+        <aside class="sidenav" aria-label="Navegação das configurações">
+          <button class="sideItem active" type="button" data-target="panel-categories">
+            <span class="bar bar-red"></span>
+            <span>Categorias</span>
+          </button>
+          <button class="sideItem" type="button" data-target="panel-links">
+            <span class="bar bar-blue"></span>
+            <span>Links marcados</span>
+          </button>
+          <button class="sideItem" type="button" data-target="panel-backup">
+            <span class="bar bar-yellow"></span>
+            <span>Backup</span>
+          </button>
+
+          <div class="sideSpacer"></div>
+
+          <a class="sideLink" href="dashboard.html">Abrir Dashboard</a>
+        </aside>
+
+        <main class="workarea">
+          <!-- CATEGORIAS -->
+          <section class="panel active" id="panel-categories">
+            <div class="panelHeader">
+              <h2>Categorias</h2>
+              <p>Crie cores para marcar artigos no Scholar. As categorias padrão (Seed/Backward/Forward…) ajudam no snowballing.</p>
             </div>
 
-            <div class="field" style="max-width:160px">
-              <label for="categoryColor">Cor</label>
-              <input type="color" id="categoryColor" />
+            <div class="card">
+              <div class="formRow">
+                <div class="field">
+                  <label for="categoryName">Nome</label>
+                  <input type="text" id="categoryName" placeholder="Ex.: Seed" />
+                </div>
+
+                <div class="field fieldColor">
+                  <label for="categoryColor">Cor</label>
+                  <input type="color" id="categoryColor" />
+                </div>
+
+                <div class="field fieldActions">
+                  <label>&nbsp;</label>
+                  <div class="btnRow">
+                    <button id="addCategory" class="btn primary">Adicionar</button>
+                    <button id="seedDefaultCategories" class="btn">Categorias padrão</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="listHead">
+                <h3>Lista de categorias</h3>
+                <span class="muted">Clique em <b>Excluir</b> para remover uma categoria.</span>
+              </div>
+              <ul id="categoryList" class="list"></ul>
+            </div>
+          </section>
+
+          <!-- LINKS -->
+          <section class="panel" id="panel-links">
+            <div class="panelHeader">
+              <h2>Links marcados</h2>
+              <p>Gerencie os links que foram destacados no Scholar (e os registros do dashboard).</p>
             </div>
 
-            <div class="field actions">
-              <label>&nbsp;</label>
-              <div class="row" style="gap:10px">
-                <button id="addCategory" class="btn primary">Adicionar</button>
-                <button id="seedDefaultCategories" class="btn">Categorias padrão</button>
+            <div class="card">
+              <div class="formRow" style="align-items:flex-end">
+                <div class="field" style="flex:1">
+                  <label for="highlightSearch">Buscar</label>
+                  <input type="text" id="highlightSearch" placeholder="Buscar por título ou URL…" />
+                </div>
+
+                <div class="field fieldActions">
+                  <label>&nbsp;</label>
+                  <button id="removeLinks" class="btn danger" style="display:none">Resetar todos</button>
+                </div>
+              </div>
+
+              <div class="listHead">
+                <h3>Lista de links</h3>
+                <span class="muted">Use <b>Excluir</b> para remover um link individual.</span>
+              </div>
+              <ul id="highlightedList" class="list"></ul>
+            </div>
+          </section>
+
+          <!-- BACKUP -->
+          <section class="panel" id="panel-backup">
+            <div class="panelHeader">
+              <h2>Backup do armazenamento</h2>
+              <p>Faça download de um backup (JSON) ou envie um arquivo para restaurar. Isso pode sobrescrever dados existentes.</p>
+            </div>
+
+            <div class="card">
+              <div class="formRow" style="align-items:flex-end">
+                <div class="field fieldActions">
+                  <label>&nbsp;</label>
+                  <button id="downloadStorage" class="btn">Download</button>
+                </div>
+
+                <div class="field" style="min-width:260px">
+                  <label for="uploadStorage">Upload</label>
+                  <input id="uploadStorage" type="file" accept=".json" />
+                </div>
+              </div>
+
+              <div class="note">
+                Dica: após alterar categorias, recarregue a aba do Google Scholar (F5) para ver as opções atualizadas no clique direito.
               </div>
             </div>
-          </div>
-
-          <div class="listHead">
-            <h3>Lista de categorias</h3>
-            <span class="muted">Clique em <b>Excluir</b> para remover uma categoria.</span>
-          </div>
-          <ul id="categoryList" class="list"></ul>
-        </div>
-
-        <div class="card">
-          <div class="cardHead">
-            <h2>Links marcados</h2>
-            <p>Gerencie os links que foram destacados no Scholar (e os registros do dashboard).</p>
-          </div>
-
-          <div class="row" style="align-items:flex-end">
-            <div class="field" style="flex:1">
-              <label for="highlightSearch">Buscar</label>
-              <input type="text" id="highlightSearch" placeholder="Buscar por título ou URL…" />
-            </div>
-            <div class="field actions">
-              <label>&nbsp;</label>
-              <button id="removeLinks" class="btn danger" style="display:none">Resetar todos</button>
-            </div>
-          </div>
-
-          <div class="listHead">
-            <h3>Lista de links</h3>
-            <span class="muted">Use <b>Excluir</b> para remover um link individual.</span>
-          </div>
-          <ul id="highlightedList" class="list"></ul>
-        </div>
-      </section>
-
-      <section class="card" style="margin-top:14px">
-        <div class="cardHead">
-          <h2>Backup do armazenamento</h2>
-          <p>Faça download de um backup (JSON) ou envie um arquivo para restaurar. Isso pode sobrescrever dados existentes.</p>
-        </div>
-        <div class="row" style="align-items:flex-end">
-          <div class="field actions">
-            <label>&nbsp;</label>
-            <button id="downloadStorage" class="btn">Download</button>
-          </div>
-          <div class="field" style="min-width:260px">
-            <label for="uploadStorage">Upload</label>
-            <input id="uploadStorage" type="file" accept=".json" />
-          </div>
-        </div>
-
-        <div class="note">
-          Dica: após alterar categorias, recarregue a aba do Google Scholar (F5) para ver as opções atualizadas no clique direito.
-        </div>
-      </section>
-    </main>
+          </section>
+        </main>
+      </div>
+    </div>
   </body>
 </html>
