@@ -3,14 +3,14 @@
   --topbar: #606060;
   --sidebar: #a8a8a8;
   --panel: #4f4f4f;
-  --text: #f2f2f2;
   --textDark: #1b1b1b;
-  --muted: rgba(255,255,255,0.75);
-  --border: #8a53ff;  /* roxo igual referência */
-  --shadow: 0 10px 25px rgba(0,0,0,0.25);
+  --text: #eaf0ff;
+  --muted: rgba(234,240,255,0.70);
+  --border: rgba(234,240,255,0.2);
+  --shadow: 0 12px 30px rgba(0,0,0,0.35);
   --radius: 10px;
   --btn: #6d6d6d;
-  --btnHover: #7a7a7a;
+  --btnHover: #9a9a9a;
   --danger: #ff6b6b;
 }
 
@@ -19,7 +19,11 @@ html,body{height:100%}
 body{
   margin:0;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial;
-  background: var(--bg);
+  background:
+    radial-gradient(1200px 600px at 15% 10%, rgba(110,168,255,0.25), transparent 55%),
+    radial-gradient(900px 500px at 85% 20%, rgba(170,110,255,0.18), transparent 60%),
+    radial-gradient(1100px 700px at 50% 100%, rgba(40,255,200,0.10), transparent 60%),
+    var(--bg);
   color: var(--text);
 }
 
@@ -36,15 +40,15 @@ body{
 }
 .brand{display:flex; align-items:center; gap:12px; min-width:240px}
 .logo{
-  width:52px; height:34px;
-  display:flex; align-items:center; justify-content:center;
-  background: var(--border);
-  color: #101010;
-  font-weight:800;
-  letter-spacing:0.8px;
+  width:42px;height:42px;border-radius:14px;
+  display:grid;place-items:center;
+  font-weight:900;
+  background: linear-gradient(135deg, rgba(110,168,255,0.9), rgba(170,110,255,0.9));
+  box-shadow: 0 12px 30px rgba(110,168,255,0.18);
+
 }
 .brandTitle{font-weight:800; font-size:14px; line-height:1}
-.brandSub{font-size:12px; opacity:0.9; margin-top:4px}
+.brandSub{font-size:12px;color:var(--muted);margin-top:2px}
 
 .topbarActions{display:flex; align-items:center; gap:12px}
 .toggle{
@@ -52,7 +56,7 @@ body{
   font-size:13px;
   user-select:none;
 }
-.toggle input{width:16px; height:16px}
+.toggle input{transform: scale(1.2)}
 
 .main{
   flex:1;
@@ -64,7 +68,9 @@ body{
 /* sidebar */
 .sidenav{
   width:240px;
-  background: var(--sidebar);
+  background: linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.06));
+  border:1px solid var(--border);
+  border-radius: var(--radius);
   padding: 10px;
   display:flex;
   flex-direction:column;
@@ -86,7 +92,7 @@ body{
 .sideItem:hover{background: rgba(255,255,255,0.18)}
 .sideItem.active{
   outline: 2px solid var(--border);
-  background: rgba(255,255,255,0.22);
+  background: rgba(255,255,255,0.4);
 }
 
 .bar{
@@ -119,10 +125,11 @@ body{
 .workarea{
   flex:1;
   background: var(--panel);
-  border: 3px solid var(--border);
+  border: 1px solid var(--border);
   padding: 16px;
   box-shadow: var(--shadow);
   min-height: 520px;
+  border-radius: var(--radius);
 }
 
 .panel{display:none}
@@ -174,12 +181,25 @@ body{
 
 .fieldColor{min-width:160px}
 .field input[type="color"]{
-  height:38px;
+  
   width:100%;
-  padding:0;
-  border: 1px solid rgba(255,255,255,0.18);
+  
+  height:38px;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: rgba(255,255,255,0.10);
+  background-color: transparent;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+.field input[type="color"]::-webkit-color-swatch {
+  border-radius: 8px;
+  padding: 0px;
+  border: none;
+}
+.field input[type="color"]::-moz-color-swatch {
+  border-radius: 5px;
+  border: none;
 }
 
 .fieldActions{min-width:280px}
@@ -195,7 +215,7 @@ body{
   font-weight:800;
   cursor:pointer;
 }
-.btn:hover{background: var(--btnHover)}
+.btn:hover{background: var(--btnHover);}
 .btn.primary{background: var(--border); color:#101010}
 .btn.primary:hover{filter: brightness(1.04)}
 .btn.danger{background: var(--danger); color:#101010; font-weight:900}
