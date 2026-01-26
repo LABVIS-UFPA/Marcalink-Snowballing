@@ -15,7 +15,11 @@
 }
 
 *{box-sizing:border-box}
-html,body{height:100%}
+html,body{
+  height:100%;
+  margin: 0;
+  overflow: hidden;
+}
 body{
   margin:0;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial;
@@ -28,9 +32,14 @@ body{
 }
 
 /* layout base */
-.layout{min-height:100%; display:flex; flex-direction:column}
+.layout{
+  min-height:100%; 
+  display:flex;
+  flex-direction:column;
+  height: 100%;
+}
 .topbar{
-  height:64px;
+  min-height:64px;
   background: var(--topbar);
   display:flex;
   align-items:center;
@@ -63,6 +72,8 @@ body{
   display:flex;
   gap: 14px;
   padding: 12px;
+  overflow: hidden; /* Impede que o conteúdo interno estique a página */
+  height: 100%;
 }
 
 /* sidebar */
@@ -128,12 +139,26 @@ body{
   border: 1px solid var(--border);
   padding: 16px;
   box-shadow: var(--shadow);
-  min-height: 520px;
+  /* min-height: 520px; */
   border-radius: var(--radius);
+
+  display: flex;
+  flex-direction: column;
+  height: 100%;       /* Ocupa toda a altura do .main */
+  min-height: 0;      /* IMPORTANTE: Remove o '520px' que causava o bug do scroll duplo */
+  overflow: hidden;   /* Garante que nada vaze */
+  box-sizing: border-box; /* Garante que o padding não estoure a altura */
+
+
 }
 
 .panel{display:none}
-.panel.active{display:block}
+.panel.active{
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
 
 .panelHeader{
   margin-bottom: 12px;
@@ -155,6 +180,13 @@ body{
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: var(--radius);
   padding: 14px;
+
+  flex: 1;                /* Ocupa todo o espaço vertical que sobrar abaixo do header */
+  display: flex;          /* Vira flex para controlar os filhos (inputs, lista) */
+  flex-direction: column;
+  min-height: 0;          /* Crucial: permite que o card encolha se a tela for pequena */
+  overflow: hidden;       /* Impede vazamento visual */
+  max-height: none;       /* Remove seu fix manual de 512px */
 }
 .formRow{
   display:flex;
@@ -232,13 +264,18 @@ body{
 }
 .listHead h3{margin:0; font-size:14px}
 .muted{color: var(--muted); font-size:12px}
-.list{
+.list, .serverLog{
   list-style:none;
   padding:0;
   margin:10px 0 0 0;
   display:flex;
   flex-direction:column;
   gap:10px;
+
+  flex: 1;                /* Ocupa o espaço restante dentro do card */
+  overflow-y: auto;       /* Scroll apenas aqui */
+  min-height: 0;          /* Fix para Firefox/Chrome flex items */
+
 }
 .list li{
   display:flex;
@@ -249,6 +286,7 @@ body{
   border-radius: 8px;
   background: rgba(255,255,255,0.08);
   border: 1px solid rgba(255,255,255,0.12);
+  margin-right: 7px;
 }
 .list .left{
   display:flex;
@@ -314,16 +352,35 @@ body{
 
 /* ✅ NOVO: log do Server */
 .serverLog{
-  margin: 0;
   padding: 12px;
   border-radius: 8px;
   border: 1px solid rgba(255,255,255,0.18);
   background: rgba(0,0,0,0.35);
   color: var(--text);
-  min-height: 180px;
-  max-height: 260px;
   overflow: auto;
   font-size: 12px;
   line-height: 1.4;
   white-space: pre-wrap;
+}
+
+
+
+/* Estilização da barra de rolagem para combinar com o tema Dark */
+.list::-webkit-scrollbar,
+.serverLog::-webkit-scrollbar {
+  width: 8px;
+}
+.list::-webkit-scrollbar-track,
+.serverLog::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.1);
+  border-radius: 4px;
+}
+.list::-webkit-scrollbar-thumb,
+.serverLog::-webkit-scrollbar-thumb {
+  background: var(--btn);
+  border-radius: 4px;
+}
+.list::-webkit-scrollbar-thumb:hover,
+.serverLog::-webkit-scrollbar-thumb:hover {
+  background: var(--btnHover);
 }
