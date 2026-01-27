@@ -300,106 +300,95 @@ document.addEventListener("DOMContentLoaded", () => {
   // =====================
   // ✅ SERVER / WEBSOCKET
   // =====================
-  let socket = null;
-
   const serverUrlInput = document.getElementById("serverUrl");
   const serverPortInput = document.getElementById("serverPort");
   const connectBtn = document.getElementById("connectBtn");
   const sendPingBtn = document.getElementById("sendPingBtn");
-  const serverStatus = document.getElementById("serverStatus");
+  const serverStatusLabel = document.getElementById("serverStatus");
   const serverLog = document.getElementById("serverLog");
+  const clearServerLogBtn = document.getElementById("clearServerLog");
 
+  let server_status = 'Desconectado';
   function setServerStatus(text) {
-    if (serverStatus) serverStatus.textContent = text;
+    if (serverStatusLabel) serverStatusLabel.textContent = text;
+    if (connectBtn) connectBtn.textContent = (text === 'Conectado') ? 'Desconectar' : 'Conectar';
+    server_status = text;
   }
 
-  function appendServerLog(msg) {
+  function renderServerLogFromArray(msgs) {
     if (!serverLog) return;
-    const t = new Date().toLocaleTimeString();
-    serverLog.textContent += `[${t}] ${msg}\n`;
+    serverLog.textContent = '';
+    for (const m of msgs || []) {
+      const t = new Date(m.time).toLocaleTimeString();
+      serverLog.textContent += `[${t}] ${m.data}\n`;
+    }
     serverLog.scrollTop = serverLog.scrollHeight;
   }
 
-  function buildWsUrl(url, port) {
-    let u = (url || "").trim();
-    let p = (port || "").toString().trim();
-
-    if (!u) u = "ws://localhost";
-    if (!p) p = "8080";
-
-    if (!/^wss?:\/\//i.test(u)) u = "ws://" + u;
-    u = u.replace(/\/+$/g, "");
-    if (/:(\d+)$/.test(u)) return u;
-    return `${u}:${p}`;
+  
+  // Load current server settings/status/messages from storage
+  function refreshServerState() {
+    // Request authoritative state from background instead of relying solely on local memory
+    chrome.runtime.sendMessage({ action: 'socket_get_state' }, (resp) => {
+      if (resp && resp.ok) {
+        if (serverUrlInput) serverUrlInput.value = resp.url || '';
+        if (serverPortInput) serverPortInput.value = resp.port || '';
+        setServerStatus(resp.status || 'Desconectado');
+        renderServerLogFromArray(Array.isArray(resp.messages) ? resp.messages : []);
+        return;
+      }
+    });
   }
 
-  function disconnectSocket() {
-    try { socket?.close(); } catch (e) {}
-    socket = null;
-    setServerStatus("Desconectado");
-    if (connectBtn) connectBtn.textContent = "Conectar";
-  }
+  // Initial load
+  refreshServerState();
 
-  function connectSocket() {
-    const fullUrl = buildWsUrl(serverUrlInput?.value, serverPortInput?.value);
-    setServerStatus("Conectando...");
-    appendServerLog("Conectando em " + fullUrl);
+  // Listen for background updates
+  chrome.storage.onChanged.addListener((changes) => {
+    if (changes.server_status) setServerStatus(changes.server_status.newValue);
+    if (changes.server_messages) renderServerLogFromArray(changes.server_messages.newValue || []);
+  });
 
-    try {
-      socket = new WebSocket(fullUrl);
-    } catch (e) {
-      setServerStatus("Erro");
-      appendServerLog("Erro ao criar WebSocket: " + (e?.message || e));
-      socket = null;
-      return;
-    }
-
-    socket.onopen = () => {
-      setServerStatus("Conectado");
-      appendServerLog("✅ Conectado");
-      if (connectBtn) connectBtn.textContent = "Desconectar";
-    };
-
-    socket.onmessage = (e) => {
-      appendServerLog("MSG: " + e.data);
-
-      chrome.storage.local.get({ server_messages: [] }, (res) => {
-        const msgs = Array.isArray(res.server_messages) ? res.server_messages : [];
-        msgs.push({ time: Date.now(), data: e.data });
-        chrome.storage.local.set({ server_messages: msgs.slice(-500) });
-      });
-    };
-
-    socket.onerror = () => {
-      setServerStatus("Erro");
-      appendServerLog("❌ Erro na conexão");
-    };
-
-    socket.onclose = () => {
-      appendServerLog("🔌 Conexão encerrada");
-      disconnectSocket();
-    };
-  }
+  // Also refresh state when the page/tab becomes visible or focused
+  window.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') refreshServerState();
+  });
+  window.addEventListener('focus', () => refreshServerState());
+  window.addEventListener('pageshow', () => refreshServerState());
 
   if (connectBtn) {
     connectBtn.addEventListener("click", () => {
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        appendServerLog("Desconectando...");
-        disconnectSocket();
-        return;
+      const url = serverUrlInput?.value?.trim();
+      const port = serverPortInput?.value?.trim();
+      if (server_status === 'Conectado') {
+        chrome.runtime.sendMessage({ action: 'socket_disconnect' }, () => {});
+      } else {
+        chrome.runtime.sendMessage({ action: 'socket_connect', url, port }, () => {});
       }
-      connectSocket();
     });
   }
 
   if (sendPingBtn) {
     sendPingBtn.addEventListener("click", () => {
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send("ping");
-        appendServerLog("➡️ PING enviado");
-      } else {
-        appendServerLog("⚠️ Socket não conectado");
-      }
+      chrome.runtime.sendMessage({ action: 'socket_send', data: 'ping' }, (resp) => {
+        if (!resp || !resp.ok) {
+          // If send failed, ensure user sees it in log
+          chrome.storage.local.get({ server_messages: [] }, (res) => {
+            const msgs = Array.isArray(res.server_messages) ? res.server_messages : [];
+            msgs.push({ time: Date.now(), data: '⚠️ Socket não conectado (ping falhou)' });
+            chrome.storage.local.set({ server_messages: msgs.slice(-500) });
+          });
+        }
+      });
+    });
+  }
+
+  if (clearServerLogBtn) {
+    clearServerLogBtn.addEventListener('click', () => {
+      if (!confirm('Limpar log do servidor?')) return;
+      chrome.storage.local.set({ server_messages: [] }, () => {
+        renderServerLogFromArray([]);
+      });
     });
   }
 

@@ -43,7 +43,7 @@
             <span>Backup</span>
           </button>
 
-          <!-- ✅ NOVO: SERVER -->
+          <!-- SERVER -->
           <button class="sideItem" type="button" data-target="panel-server">
             <span class="bar bar-purple"></span>
             <span>Server</span>
@@ -182,7 +182,9 @@
 
               <div class="listHead">
                 <h3>Log</h3>
-                <span class="muted">Aparece aqui em tempo real.</span>
+                <div class="muted" style="font-size:12px">
+                  <button id="clearServerLog" class="btn small">Limpar log</button>
+                </div>
               </div>
 
               <pre id="serverLog" class="serverLog"></pre>

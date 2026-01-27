@@ -77,8 +77,136 @@ function createContextMenu() {
 chrome.runtime.onInstalled.addListener(() => {
   ensureDefaultCategories(() => createContextMenu());
 });
+chrome.alarms.create('keepAlive', { periodInMinutes: 0.25 });
+chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === 'keepAlive') {
+        console.log('Keep alive ping...');
+        if(!wsManager.socket || wsManager.socket.readyState !== WebSocket.OPEN) {
+          console.log('Chamou auto connect...');
+          wsManager.tryAutoConnect();
+        }
+    }
+});
+// SOCKET (background manager)
+class WebsocketManager {
+  constructor() {
+    this.socket = null;
+    this._closedFinalized = false;
+    this.tryAutoConnect();
+  }
+
+  buildWsUrl(url, port) {
+    let u = (url || "").trim();
+    let p = (port || "").toString().trim();
+    if (!u) u = "ws://localhost";
+    if (!p) p = "8080";
+    if (!/^wss?:\/\//i.test(u)) u = "ws://" + u;
+    u = u.replace(/\/+$/g, "");
+    if (/:(\d+)$/.test(u)) return u;
+    return `${u}:${p}`;
+  }
+
+  setStatus(status) {
+    chrome.storage.local.set({ server_status: status });
+  }
+
+  appendLog(msg) {
+    chrome.storage.local.get({ server_messages: [] }, (res) => {
+      const msgs = Array.isArray(res.server_messages) ? res.server_messages : [];
+      msgs.push({ time: Date.now(), data: msg });
+      chrome.storage.local.set({ server_messages: msgs.slice(-500) });
+    });
+  }
+
+  finalizeClose(logMsg = "🔌 Conexão encerrada", statusText = "Desconectado") {
+    if (this._closedFinalized) return;
+    this._closedFinalized = true;
+    try { this.socket = null; } catch (e) { this.socket = null; }
+    this.setStatus(statusText);
+    this.appendLog(logMsg);
+  }
+
+  disconnect() {
+    try { if (this.socket) this.socket.close(); } catch (e) {}
+    // ensure finalization (in case onclose doesn't fire)
+    this.finalizeClose("🔌 Desconectado", "Desconectado");
+  }
+
+  connect(url, port) {
+
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      console.log('Já está conectado.');
+      this.appendLog("Já está conectado.");
+      return;
+    }
+
+    const fullUrl = this.buildWsUrl(url, port);
+    this.setStatus("Conectando...");
+    this.appendLog("Conectando em " + fullUrl);
+    this._closedFinalized = false;
+
+    try {
+      this.socket = new WebSocket(fullUrl);
+    } catch (e) {
+      this.setStatus("Erro");
+      this.appendLog("Erro ao criar WebSocket: " + (e?.message || e));
+      this.socket = null;
+      this._closedFinalized = true;
+      return;
+    }
+
+    this.socket.onopen = () => {
+      this.setStatus("Conectado");
+      this.appendLog("✅ Conectado");
+    };
+
+    this.socket.onmessage = (e) => {
+      this.appendLog("MSG: " + e.data);
+    };
+
+    this.socket.onerror = (ev) => {
+      this.setStatus("Erro");
+      this.appendLog("❌ Erro na conexão");
+    };
+
+    this.socket.onclose = () => {
+      this.finalizeClose("🔌 Conexão encerrada", "Desconectado");
+      this.tryAutoConnect();
+    };
+  }
+
+  send(data) {
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      this.socket.send(data);
+      this.appendLog("➡️ " + (typeof data === 'string' ? data : JSON.stringify(data)));
+      return true;
+    }
+    return false;
+  }
+
+  tryAutoConnect() {
+    console.log('Tentando auto conectar...');
+    chrome.storage.local.get(["server_url", "server_port"], (data) => {
+
+      if (!data.server_url) {
+        //Usa porta e url padrão se não tiver nada salvo
+        data.server_url = "ws://localhost";
+        data.server_port = "8080";
+        chrome.storage.local.set(data);
+      }
+
+      const u = data.server_url;
+      const p = data.server_port;
+      console.log(`Auto connect with url=${u} port=${p}`);
+      if (u) this.connect(u, p);
+    });
+  }
+}
+const wsManager = new WebsocketManager();
+
+// Try connect on startup once if configured
 chrome.runtime.onStartup.addListener(() => {
-  ensureDefaultCategories(() => createContextMenu());
+  wsManager.tryAutoConnect();
 });
 
 // Allow options page to trigger menu rebuild.
@@ -88,7 +216,64 @@ chrome.runtime.onMessage.addListener((msg, _sender, _sendResponse) => {
     return;
   }
   if (msg && msg.action === "seedDefaultCategories") {
+    createContextMenu();
     ensureDefaultCategories(() => createContextMenu());
+  }
+  // Socket control messages from options page
+  if (msg && msg.action === "socket_get_state") {
+    // Reply with the real socket state and stored server info/messages
+    chrome.storage.local.get(["server_url", "server_port", "server_messages"], (res) => {
+      let status = "Desconectado";
+      try {
+        const s = wsManager.socket;
+        if (s) {
+          switch (s.readyState) {
+            case WebSocket.CONNECTING: status = "Conectando..."; break;
+            case WebSocket.OPEN: status = "Conectado"; break;
+            case WebSocket.CLOSING: status = "Fechando"; break;
+            case WebSocket.CLOSED: status = "Desconectado"; break;
+            default: status = "Desconectado";
+          }
+        }
+      } catch (e) {
+        status = "Desconectado";
+      }
+
+      const messages = Array.isArray(res.server_messages) ? res.server_messages : [];
+      const url = res.server_url || '';
+      const port = res.server_port || '';
+      _sendResponse && _sendResponse({ ok: true, url, port, status, messages });
+    });
+    return true; // async response
+  }
+
+  if (msg && msg.action === "socket_connect") {
+    const url = msg.url;
+    const port = msg.port;
+    if (url) {
+      chrome.storage.local.set({ server_url: url, server_port: port });
+    }
+    wsManager.connect(url || undefined, port || undefined);
+    _sendResponse && _sendResponse({ ok: true });
+    return true;
+  }
+  if (msg && msg.action === "socket_disconnect") {
+    wsManager.disconnect();
+    _sendResponse && _sendResponse({ ok: true });
+    return true;
+  }
+  if (msg && msg.action === "socket_send") {
+    try {
+      const ok = wsManager.send(msg.data);
+      if (ok) {
+        _sendResponse && _sendResponse({ ok: true });
+      } else {
+        _sendResponse && _sendResponse({ ok: false, error: 'socket_not_connected' });
+      }
+    } catch (e) {
+      _sendResponse && _sendResponse({ ok: false, error: e?.message || e });
+    }
+    return true;
   }
 });
 
