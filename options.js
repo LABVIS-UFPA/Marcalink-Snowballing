@@ -310,7 +310,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let server_status = 'Desconectado';
   function setServerStatus(text) {
-    if (serverStatusLabel) serverStatusLabel.textContent = text;
+    const icon = text === 'Conectado' ? '🟢' : '🔴';
+    if (serverStatusLabel) serverStatusLabel.textContent = `${icon} ${text}`;
     if (connectBtn) connectBtn.textContent = (text === 'Conectado') ? 'Desconectar' : 'Conectar';
     server_status = text;
   }

@@ -1,21 +1,10 @@
+import {fmtDate, normalizeStr, jaccard} from './core/utils.js';
+
 let state = null;
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
-function fmtDate(iso) {
-  if (!iso) return "";
-  try {
-    const d = new Date(iso);
-    return d.toLocaleDateString("pt-BR");
-  } catch {
-    return iso;
-  }
-}
-
-function normalizeStr(s) {
-  return (s || "").toString().toLowerCase();
-}
 
 async function loadState() {
   await svatMigrateIfNeeded();
@@ -359,22 +348,6 @@ function computeSaturationNote() {
   return `Sem sinal forte de saturação na iteração ${last} (incluídos: ${incLast}).`;
 }
 
-function tokenSet(title) {
-  return new Set(normalizeStr(title)
-    .replace(/[^a-z0-9\s]/g, " ")
-    .split(/\s+/)
-    .filter(w => w && w.length >= 3));
-}
-
-function jaccard(a, b) {
-  const A = tokenSet(a);
-  const B = tokenSet(b);
-  if (!A.size || !B.size) return 0;
-  let inter = 0;
-  for (const x of A) if (B.has(x)) inter++;
-  const uni = A.size + B.size - inter;
-  return uni ? inter / uni : 0;
-}
 
 function findDuplicatePairs(threshold = 0.85) {
   const papers = state.papers.filter(p => (p.title || "").trim().length >= 6);

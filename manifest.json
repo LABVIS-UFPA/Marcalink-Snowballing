@@ -5,7 +5,8 @@
   "description": "Marca links no Google Scholar e gerencia um projeto de snowballing com dashboard e exportação.",
   "permissions": ["contextMenus", "scripting", "storage", "unlimitedStorage", "downloads", "alarms"],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "action": {
     "default_title": "Marcalink Snowballing",

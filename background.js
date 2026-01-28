@@ -1,3 +1,5 @@
+import {hashId, inferFromCategory} from './core/utils.js';
+
 const DEFAULT_SNOWBALLING_CATEGORIES = {
   "Seed": "#4CAF50",
   "Backward": "#2196F3",
@@ -77,22 +79,14 @@ function createContextMenu() {
 chrome.runtime.onInstalled.addListener(() => {
   ensureDefaultCategories(() => createContextMenu());
 });
-chrome.alarms.create('keepAlive', { periodInMinutes: 0.25 });
-chrome.alarms.onAlarm.addListener((alarm) => {
-    if (alarm.name === 'keepAlive') {
-        console.log('Keep alive ping...');
-        if(!wsManager.socket || wsManager.socket.readyState !== WebSocket.OPEN) {
-          console.log('Chamou auto connect...');
-          wsManager.tryAutoConnect();
-        }
-    }
-});
+
 // SOCKET (background manager)
 class WebsocketManager {
   constructor() {
     this.socket = null;
     this._closedFinalized = false;
     this.tryAutoConnect();
+    this.autoConnectionTime = 100;
   }
 
   buildWsUrl(url, port) {
@@ -158,6 +152,7 @@ class WebsocketManager {
     this.socket.onopen = () => {
       this.setStatus("Conectado");
       this.appendLog("✅ Conectado");
+      this.autoConnectionTime = 100;
     };
 
     this.socket.onmessage = (e) => {
@@ -171,7 +166,9 @@ class WebsocketManager {
 
     this.socket.onclose = () => {
       this.finalizeClose("🔌 Conexão encerrada", "Desconectado");
-      this.tryAutoConnect();
+      setTimeout(() => this.tryAutoConnect(), this.autoConnectionTime);
+      this.autoConnectionTime *= 2;
+      if (this.autoConnectionTime > 60000) this.autoConnectionTime = 60000;
     };
   }
 
@@ -287,30 +284,9 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-function hashId(input) {
-  // FNV-1a 32-bit
-  let h = 0x811c9dc5;
-  for (let i = 0; i < input.length; i++) {
-    h ^= input.charCodeAt(i);
-    h = (h * 0x01000193) >>> 0;
-  }
-  return "p_" + h.toString(16).padStart(8, "0");
-}
 
-function inferFromCategory(category) {
-  const c = (category || "").toLowerCase();
-  const origin = c.includes("seed") || c.includes("semente") ? "seed"
-    : c.includes("back") || c.includes("refer") ? "backward"
-    : c.includes("forw") || c.includes("cita") ? "forward"
-    : "unknown";
 
-  const status = c.includes("incl") ? "included"
-    : c.includes("excl") ? "excluded"
-    : c.includes("duplic") ? "duplicate"
-    : "pending";
 
-  return { origin, status };
-}
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId.startsWith("highlight_")) {
