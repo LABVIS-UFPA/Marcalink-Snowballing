@@ -1,13 +1,4 @@
 import {fmtDate, normalizeStr, jaccard} from './core/utils.js';
-import {
-  svatMigrateIfNeeded,
-  svatGetAll,
-  svatSetAll,
-  svatNowIso,
-  svatDownload,
-  svatToCsv,
-  svatToBibtex,
-} from './svat_storage.js';
 
 let state = null;
 
@@ -1051,60 +1042,9 @@ function bindEvents() {
   $("#btnGraphReset").addEventListener("click", renderGraph);
 }
 
-
-function setupStorageSync() {
-  if (!chrome?.storage?.onChanged) return;
-
-  let reloadTimer = null;
-
-  chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName !== "local") return;
-
-    // If user switched the active project, reload everything to reflect it immediately.
-    if (changes["svat_active_project_id"]) {
-      if (reloadTimer) clearTimeout(reloadTimer);
-      reloadTimer = setTimeout(async () => {
-        try {
-          await loadState();
-          renderAll();
-
-          // Preserve currently selected view if possible
-          const activeBtn = document.querySelector(".navBtn.active");
-          const view = activeBtn?.dataset?.view || "overview";
-          setActiveView(view);
-        } catch (e) {
-          console.error("[SVAT] Failed to reload after project switch:", e);
-        }
-      }, 50);
-      return;
-    }
-
-    // Soft refresh if something relevant changed (e.g., papers/citations updated in another tab).
-    const touchedKeys = Object.keys(changes || {});
-    if (touchedKeys.some(k =>
-      k.startsWith("svat_project__") ||
-      k.startsWith("svat_papers__") ||
-      k.startsWith("svat_iterations__") ||
-      k.startsWith("svat_citations__") ||
-      k.startsWith("svat_criteria__")
-    )) {
-      if (reloadTimer) clearTimeout(reloadTimer);
-      reloadTimer = setTimeout(async () => {
-        try {
-          await loadState();
-          renderAll();
-        } catch (e) {
-          console.error("[SVAT] Failed to soft reload:", e);
-        }
-      }, 150);
-    }
-  });
-}
-
 async function init() {
   await loadState();
   bindEvents();
-  setupStorageSync();
   renderAll();
   setActiveView("overview");
 }

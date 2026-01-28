@@ -115,7 +115,6 @@ body{
 .bar-red{background:#ff5a5a}
 .bar-blue{background:#2d77ff}
 .bar-yellow{background:#ffd84d}
-.bar-green{background:#4CAF50}
 
 /* ✅ NOVO: barra roxa (Server) */
 .bar-purple{background: var(--border)}

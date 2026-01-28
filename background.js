@@ -1,6 +1,5 @@
-import { hashId, inferFromCategory } from './core/utils.js';
-import { storage } from './infrastructure/storage.js';
-import { svatGetActiveProjectId, svatKey, SVAT_PROJECT_BASE } from './svat_storage.js';
+import {hashId, inferFromCategory} from './core/utils.js';
+import {storage} from './infrastructure/storage.js';
 
 const DEFAULT_SNOWBALLING_CATEGORIES = {
   "Seed": "#4CAF50",
@@ -13,20 +12,40 @@ const DEFAULT_SNOWBALLING_CATEGORIES = {
 };
 
 /**
- * Garante que existam categorias padrão de Snowballing (por PROJETO).
- * Mantém o formato atual: categories é um objeto { nome: cor }.
+ * Garante que existam categorias padrão de Snowballing.
+ * Mantém o formato atual do projeto: categories é um objeto { nome: cor }.
  * Se já existir alguma categoria, apenas adiciona as que estiverem faltando.
  */
 function ensureDefaultCategories(cb) {
-  svatGetActiveProjectId().then((pid) => {
-    const catKey = svatKey(SVAT_PROJECT_BASE.categories, pid);
-    chrome.storage.local.get([catKey], (data) => {
-      let categories = (data[catKey] && typeof data[catKey] === "object") ? data[catKey] : {};
-      if (Array.isArray(categories)) categories = {};
+  chrome.storage.local.get(["categories"], (data) => {
+    let categories = (data && typeof data.categories === "object" && data.categories) ? data.categories : {};
 
-      const merged = { ...DEFAULT_SNOWBALLING_CATEGORIES, ...categories };
-      chrome.storage.local.set({ [catKey]: merged }, () => cb && cb());
-    });
+    // Se categories vier como array por algum motivo, converte para objeto.
+    if (Array.isArray(categories)) {
+      const converted = {};
+      for (const item of categories) {
+        if (typeof item === "string") converted[item] = DEFAULT_SNOWBALLING_CATEGORIES[item] || "yellow";
+        else if (item && item.name) converted[item.name] = item.color || "yellow";
+      }
+      const mergedFromArray = { ...DEFAULT_SNOWBALLING_CATEGORIES, ...converted };
+      chrome.storage.local.set({ categories: mergedFromArray }, () => cb && cb());
+      return;
+    }
+
+    let changed = false;
+    const merged = { ...categories };
+    for (const [name, color] of Object.entries(DEFAULT_SNOWBALLING_CATEGORIES)) {
+      if (!merged[name]) {
+        merged[name] = color;
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      chrome.storage.local.set({ categories: merged }, () => cb && cb());
+    } else {
+      cb && cb();
+    }
   });
 }
 
@@ -35,28 +54,25 @@ function createContextMenu() {
     chrome.contextMenus.create({
       id: "highlightLink",
       title: "Marcar link",
-      contexts: ["link"],
+      contexts: ["link"]
     });
 
-    svatGetActiveProjectId().then((pid) => {
-      const catKey = svatKey(SVAT_PROJECT_BASE.categories, pid);
-      chrome.storage.local.get([catKey], (data) => {
-        const categories = data[catKey] || {};
-        for (const category in categories) {
-          chrome.contextMenus.create({
-            parentId: "highlightLink",
-            id: `highlight_${category}`,
-            title: category,
-            contexts: ["link"],
-          });
-        }
-      });
+    chrome.storage.local.get(["categories"], (data) => {
+      const categories = data.categories || {};
+      for (const category in categories) {
+        chrome.contextMenus.create({
+          parentId: "highlightLink",
+          id: `highlight_${category}`,
+          title: category,
+          contexts: ["link"]
+        });
+      }
     });
 
     chrome.contextMenus.create({
       id: "removeHighlight",
       title: "Remover marcação",
-      contexts: ["link"],
+      contexts: ["link"]
     });
   });
 }
@@ -107,11 +123,14 @@ class WebsocketManager {
 
   disconnect() {
     try { if (this.socket) this.socket.close(); } catch (e) {}
+    // ensure finalization (in case onclose doesn't fire)
     this.finalizeClose("🔌 Desconectado", "Desconectado");
   }
 
   connect(url, port) {
+
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      console.log('Já está conectado.');
       this.appendLog("Já está conectado.");
       return;
     }
@@ -141,7 +160,7 @@ class WebsocketManager {
       this.appendLog("MSG: " + e.data);
     };
 
-    this.socket.onerror = () => {
+    this.socket.onerror = (ev) => {
       this.setStatus("Erro");
       this.appendLog("❌ Erro na conexão");
     };
@@ -164,39 +183,43 @@ class WebsocketManager {
   }
 
   tryAutoConnect() {
+    console.log('Tentando auto conectar...');
     chrome.storage.local.get(["server_url", "server_port"], (data) => {
+
       if (!data.server_url) {
+        //Usa porta e url padrão se não tiver nada salvo
         data.server_url = "ws://localhost";
         data.server_port = "8080";
         chrome.storage.local.set(data);
       }
+
       const u = data.server_url;
       const p = data.server_port;
+      console.log(`Auto connect with url=${u} port=${p}`);
       if (u) this.connect(u, p);
     });
   }
 }
-
 const wsManager = new WebsocketManager();
 
+// Try connect on startup once if configured
 chrome.runtime.onStartup.addListener(() => {
   wsManager.tryAutoConnect();
 });
 
-// Allow options page to trigger menu rebuild + socket controls
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+// Allow options page to trigger menu rebuild.
+chrome.runtime.onMessage.addListener((msg, _sender, _sendResponse) => {
   if (msg && msg.action === "updateContextMenu") {
     createContextMenu();
     return;
   }
-
-  // FIX: primeiro cria/mescla categorias, depois recria o menu
   if (msg && msg.action === "seedDefaultCategories") {
+    createContextMenu();
     ensureDefaultCategories(() => createContextMenu());
-    return;
   }
-
+  // Socket control messages from options page
   if (msg && msg.action === "socket_get_state") {
+    // Reply with the real socket state and stored server info/messages
     chrome.storage.local.get(["server_url", "server_port", "server_messages"], (res) => {
       let status = "Desconectado";
       try {
@@ -217,47 +240,43 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       const messages = Array.isArray(res.server_messages) ? res.server_messages : [];
       const url = res.server_url || '';
       const port = res.server_port || '';
-      sendResponse && sendResponse({ ok: true, url, port, status, messages });
+      _sendResponse && _sendResponse({ ok: true, url, port, status, messages });
     });
-    return true;
+    return true; // async response
   }
 
   if (msg && msg.action === "socket_connect") {
     const url = msg.url;
     const port = msg.port;
-    if (url) chrome.storage.local.set({ server_url: url, server_port: port });
+    if (url) {
+      chrome.storage.local.set({ server_url: url, server_port: port });
+    }
     wsManager.connect(url || undefined, port || undefined);
-    sendResponse && sendResponse({ ok: true });
+    _sendResponse && _sendResponse({ ok: true });
     return true;
   }
-
   if (msg && msg.action === "socket_disconnect") {
     wsManager.disconnect();
-    sendResponse && sendResponse({ ok: true });
+    _sendResponse && _sendResponse({ ok: true });
     return true;
   }
-
   if (msg && msg.action === "socket_send") {
     try {
       const ok = wsManager.send(msg.data);
-      sendResponse && sendResponse(ok ? { ok: true } : { ok: false, error: 'socket_not_connected' });
+      if (ok) {
+        _sendResponse && _sendResponse({ ok: true });
+      } else {
+        _sendResponse && _sendResponse({ ok: false, error: 'socket_not_connected' });
+      }
     } catch (e) {
-      sendResponse && sendResponse({ ok: false, error: e?.message || e });
+      _sendResponse && _sendResponse({ ok: false, error: e?.message || e });
     }
     return true;
   }
 });
 
-// Rebuild do menu quando:
-// - troca projeto ativo
-// - muda categories__<pid>
-chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName !== "local") return;
-  const keys = Object.keys(changes || {});
-  if (
-    keys.includes("svat_active_project_id") ||
-    keys.some((k) => k.startsWith("categories__"))
-  ) {
+chrome.storage.onChanged.addListener((changes) => {
+  if (changes.categories) {
     createContextMenu();
   }
 });
@@ -266,52 +285,43 @@ function nowIso() {
   return new Date().toISOString();
 }
 
-chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  const pid = await svatGetActiveProjectId();
-  const catKey = svatKey(SVAT_PROJECT_BASE.categories, pid);
-  const hlKey = svatKey(SVAT_PROJECT_BASE.highlightedLinks, pid);
-  const papersKey = svatKey(SVAT_PROJECT_BASE.papers, pid);
-  const projectKey = svatKey(SVAT_PROJECT_BASE.project, pid);
 
-  if (typeof info.menuItemId === "string" && info.menuItemId.startsWith("highlight_")) {
+
+
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId.startsWith("highlight_")) {
     const category = info.menuItemId.replace("highlight_", "");
-
-    chrome.storage.local.get([catKey, hlKey, projectKey, papersKey], async (data) => {
-      const categories = data[catKey] || {};
+    chrome.storage.local.get(["categories", "highlightedLinks", "svat_project", "svat_papers"], async (data) => {
+      const categories = data.categories || {};
       const color = categories[category] || "yellow";
-
-      const url = (info.linkUrl || "").replace(/[\?|\&]casa\_token=\S+/i, "");
-
-      const highlightedLinks = data[hlKey] || {};
+      let highlightedLinks = data.highlightedLinks || {};
+      let url = (info.linkUrl || "").replace(/[\?|\&]casa\_token=\S+/i, "");
       highlightedLinks[url] = color;
-      chrome.storage.local.set({ [hlKey]: highlightedLinks });
+      chrome.storage.local.set({ highlightedLinks });
 
-      if (tab?.id) {
-        chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          func: highlightLink,
-          args: [url, color],
-        });
-      }
+      // Highlight visually
+      chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        function: highlightLink,
+        args: [url, color]
+      });
 
-      const project = data[projectKey] || { id: pid, title: pid, researcher: "", createdAt: nowIso(), currentIterationId: "I1" };
-      const papers = Array.isArray(data[papersKey]) ? data[papersKey] : [];
-
+      // Save SVAT paper (best-effort metadata extraction)
+      const project = data.svat_project || { id: "tcc-001", title: "Meu TCC", researcher: "", createdAt: nowIso(), currentIterationId: "I1" };
+      const papers = Array.isArray(data.svat_papers) ? data.svat_papers : [];
       const id = hashId(url);
       const { origin, status } = inferFromCategory(category);
 
       let meta = { title: url, authorsRaw: "", year: null };
       try {
         if (tab?.id) {
-          meta = await chrome.tabs.sendMessage(tab.id, { type: "SVAT_EXTRACT_METADATA", linkUrl: url })
-            .then(r => (r && r.ok ? r.meta : meta))
-            .catch(() => meta);
+          meta = await chrome.tabs.sendMessage(tab.id, { type: "SVAT_EXTRACT_METADATA", linkUrl: url }).then(r => (r && r.ok ? r.meta : meta)).catch(() => meta);
         }
       } catch {}
 
       const idx = papers.findIndex(p => p.id === id);
       const prev = idx >= 0 ? (papers[idx].status || "pending") : "new";
-
       const base = {
         id,
         url,
@@ -327,44 +337,41 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         visited: true,
         updatedAt: nowIso(),
       };
-
       if (idx >= 0) {
         const history = Array.isArray(papers[idx].history) ? papers[idx].history : [];
         history.push({ ts: nowIso(), action: "mark", details: { category, origin, status, prevStatus: prev } });
         papers[idx] = { ...papers[idx], ...base, history };
       } else {
-        papers.push({
-          ...base,
-          createdAt: nowIso(),
-          history: [{ ts: nowIso(), action: "mark", details: { category, origin, status, prevStatus: prev } }],
-        });
+        papers.push({ ...base, createdAt: nowIso(), history: [{ ts: nowIso(), action: "mark", details: { category, origin, status, prevStatus: prev } }] });
       }
-
-      chrome.storage.local.set({ [projectKey]: project, [papersKey]: papers });
+      chrome.storage.local.set({ svat_project: project, svat_papers: papers });
     });
-
-    return;
   }
 
   if (info.menuItemId === "removeHighlight") {
-    chrome.storage.local.get([hlKey, papersKey], (data) => {
+    chrome.storage.local.get(["highlightedLinks", "svat_papers"], (data) => {
+      let highlightedLinks = data.highlightedLinks || {};
       const url = (info.linkUrl || "").replace(/[\?|\&]casa\_token=\S+/i, "");
-
-      const highlightedLinks = data[hlKey] || {};
+      delete highlightedLinks[info.linkUrl];
       delete highlightedLinks[url];
+      chrome.storage.local.set({ highlightedLinks });
 
-      const papers = Array.isArray(data[papersKey]) ? data[papersKey] : [];
-      const filtered = papers.filter(p => (p?.url || "").replace(/[\?|\&]casa\_token=\S+/i, "") !== url);
-
-      chrome.storage.local.set({ [hlKey]: highlightedLinks, [papersKey]: filtered });
-
-      if (tab?.id) {
-        chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          func: removeHighlight,
-          args: [url],
-        });
+      // Keep the paper in SVAT (audit trail), but set visited=false
+      const papers = Array.isArray(data.svat_papers) ? data.svat_papers : [];
+      const id = hashId(url);
+      const idx = papers.findIndex(p => p.id === id);
+      if (idx >= 0) {
+        const history = Array.isArray(papers[idx].history) ? papers[idx].history : [];
+        history.push({ ts: nowIso(), action: "unmark", details: { visited: false } });
+        papers[idx] = { ...papers[idx], visited: false, updatedAt: nowIso(), history };
+        chrome.storage.local.set({ svat_papers: papers });
       }
+
+      chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        function: removeHighlight,
+        args: [url]
+      });
     });
   }
 });

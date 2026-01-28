@@ -19,8 +19,6 @@
       .kpi{border:1px solid #eee;border-radius:10px;padding:8px}
       .kpi .n{font-weight:700;font-size:14px}
       .kpi .l{font-size:10px;color:#666}
-      .activeBtn{margin-top:8px;width:100%;border:1px solid #eee;border-radius:10px;background:#fff;padding:8px 10px;font-size:12px;text-align:left;cursor:pointer}
-      .activeBtn:hover{background:#f8f8f8}
     </style>
   </head>
   <body>
@@ -33,7 +31,6 @@
         <div class="kpi"><div class="n" id="k_exc">0</div><div class="l">Excl.</div></div>
         <div class="kpi"><div class="n" id="k_pen">0</div><div class="l">Pend.</div></div>
       </div>
-      <button id="activeProjectBtn" class="activeBtn">📌 Projeto ativo: —</button>
     </header>
     <div class="wrap">
       <button id="openDashboard">📊 Abrir Dashboard</button>
@@ -43,9 +40,8 @@
       </div>
       <div class="row">
         <button id="openOptions">⚙️ Configurações</button>
-        <button id="openProjects">📁 Meus projetos</button>
+        <button id="clearData" title="Remove papers/citations/iterations/criteria">🧹 Limpar</button>
       </div>
-      <button id="clearData" title="Remove papers/citations/iterations/criteria">🧹 Limpar</button>
       <div class="muted">Dica: marque um artigo com botão direito → “Marcar link” → categoria.</div>
       <input id="file" type="file" accept="application/json" style="display:none" />
     </div>
