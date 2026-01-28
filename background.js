@@ -1,4 +1,5 @@
 import {hashId, inferFromCategory} from './core/utils.js';
+import {storage} from './infrastructure/storage.js';
 
 const DEFAULT_SNOWBALLING_CATEGORIES = {
   "Seed": "#4CAF50",

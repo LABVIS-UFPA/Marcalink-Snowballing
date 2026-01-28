@@ -1,6 +1,8 @@
 // Storage helpers for the Snowballing Visual Analytics Tool (SVAT)
 // Works in extension pages (popup/dashboard/options).
 
+import { storage } from './infrastructure/storage.js';
+
 const SVAT_KEYS = {
   project: "svat_project",
   papers: "svat_papers",
@@ -39,7 +41,7 @@ function svatInferFromCategory(category) {
 }
 
 async function svatGetAll() {
-  const data = await chrome.storage.local.get(Object.values(SVAT_KEYS));
+  const data = await storage.get(Object.values(SVAT_KEYS));
   const state = {
     project: data[SVAT_KEYS.project] || { id: "tcc-001", title: "Meu TCC", researcher: "", createdAt: svatNowIso(), currentIterationId: "I1" },
     papers: Array.isArray(data[SVAT_KEYS.papers]) ? data[SVAT_KEYS.papers] : [],
@@ -65,7 +67,7 @@ async function svatSetAll(state) {
   payload[SVAT_KEYS.iterations] = state.iterations;
   payload[SVAT_KEYS.citations] = state.citations;
   payload[SVAT_KEYS.criteria] = state.criteria;
-  await chrome.storage.local.set(payload);
+  await storage.set(payload);
 }
 
 async function svatUpsertPaper(paper) {
@@ -73,7 +75,7 @@ async function svatUpsertPaper(paper) {
   const idx = papers.findIndex(p => p.id === paper.id);
   if (idx >= 0) papers[idx] = { ...papers[idx], ...paper, updatedAt: svatNowIso() };
   else papers.push({ ...paper, createdAt: svatNowIso(), updatedAt: svatNowIso() });
-  await chrome.storage.local.set({ [SVAT_KEYS.papers]: papers });
+  await storage.set({ [SVAT_KEYS.papers]: papers });
   return papers;
 }
 
@@ -116,7 +118,7 @@ function svatToBibtex(papers) {
 
 // Backward compatibility: migrate old storage to SVAT if needed.
 async function svatMigrateIfNeeded() {
-  const data = await chrome.storage.local.get([SVAT_KEYS.papers, "highlightedLinks", "categories"]);
+  const data = await storage.get([SVAT_KEYS.papers, "highlightedLinks", "categories"]);
   if (Array.isArray(data[SVAT_KEYS.papers]) && data[SVAT_KEYS.papers].length) return;
 
   const hl = data.highlightedLinks || {};

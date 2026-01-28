@@ -1,3 +1,5 @@
+import { storage } from './infrastructure/storage.js';
+
 document.addEventListener("DOMContentLoaded", () => {
   const categoryNameInput = document.getElementById("categoryName");
   const categoryColorInput = document.getElementById("categoryColor");
@@ -15,8 +17,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // Helpers
   // =====================
   function loadOnOff() {
-    chrome.storage.local.get("active", (data) => {
-      checkOnOff.checked = !!data.active;
+    storage.get("active").then((data) => {
+      checkOnOff.checked = !!(data && data.active);
     });
   }
 
@@ -48,17 +50,17 @@ document.addEventListener("DOMContentLoaded", () => {
   // Categories
   // =====================
   function loadCategories() {
-    chrome.storage.local.get("categories", (data) => {
+    storage.get("categories").then((data) => {
       categoryList.innerHTML = "";
-      const categories = data.categories || {};
+      const categories = (data && data.categories) ? data.categories : {};
       const names = Object.keys(categories).sort((a, b) => a.localeCompare(b));
 
       function removeCategory(name) {
-        chrome.storage.local.get("categories", (d) => {
+        storage.get("categories").then(d => {
           const cats = d.categories || {};
           if (!cats[name]) return;
           delete cats[name];
-          chrome.storage.local.set({ categories: cats }, () => {
+          storage.set({ categories: cats }).then(() => {
             chrome.runtime.sendMessage({ action: "updateContextMenu" });
             loadCategories();
           });
@@ -124,14 +126,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const papers = Array.isArray(data.svat_papers) ? data.svat_papers : [];
       const filteredPapers = papers.filter((p) => normalizeUrl(p?.url) !== target);
 
-      chrome.storage.local.set({ highlightedLinks, svat_papers: filteredPapers }, () => {
-        done && done();
-      });
+      storage.set({ highlightedLinks, svat_papers: filteredPapers }).then(() => { done && done(); });
     });
   }
 
   function loadHighlightedLinks() {
-    chrome.storage.local.get(["highlightedLinks", "svat_papers"], (data) => {
+    storage.get(["highlightedLinks", "svat_papers"]).then((data) => {
       highlightedList.innerHTML = "";
       const links = data.highlightedLinks || {};
 
@@ -221,7 +221,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Events: On/Off, categories, links, backup
   // =====================
   checkOnOff.addEventListener("change", () => {
-    chrome.storage.local.set({ active: checkOnOff.checked }, function () {
+    storage.set({ active: checkOnOff.checked }).then(() => {
       console.log(checkOnOff.checked ? "Ativo." : "Desativado.");
     });
   });
@@ -240,10 +240,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const color = categoryColorInput.value;
     if (!name) return;
 
-    chrome.storage.local.get("categories", (data) => {
+    storage.get("categories").then((data) => {
       const categories = data.categories || {};
       categories[name] = color;
-      chrome.storage.local.set({ categories }, () => {
+      storage.set({ categories }).then(() => {
         categoryNameInput.value = "";
         loadCategories();
       });
@@ -262,7 +262,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   downloadStorage.addEventListener("click", () => {
-    chrome.storage.local.get(null, function (data) {
+    storage.get(null).then(function (data) {
       const jsonString = JSON.stringify(data, null, 2);
       const blob = new Blob([jsonString], { type: "application/json" });
       const url = URL.createObjectURL(blob);
@@ -274,7 +274,7 @@ document.addEventListener("DOMContentLoaded", () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    });
+    }).catch(()=>{});
   });
 
   uploadStorage.addEventListener("change", function (event) {
@@ -286,9 +286,9 @@ document.addEventListener("DOMContentLoaded", () => {
       reader.onload = function (event) {
         try {
           const jsonData = JSON.parse(event.target.result);
-          chrome.storage.local.set(jsonData, function () {
+          storage.set(jsonData).then(() => {
             alert("Dados carregados no storage com sucesso!");
-          });
+          }).catch((e)=>{ alert("Erro ao salvar dados: " + e); });
         } catch (error) {
           alert("Erro ao processar o JSON: " + error);
         }
