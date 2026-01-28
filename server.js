@@ -168,7 +168,7 @@ class ProjectManager {
   createProject(projectName) {
     //Verifica se o nome do projeto está sanitizado, senão retorna erro
     projectName = projectName.trim();
-    const error = verifyName({ name: projectName });
+    const error = verifyNameSanitized(projectName);
     if (error) return error;
 
 
