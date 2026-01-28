@@ -1,4 +1,18 @@
 import { storage } from './infrastructure/storage.js';
+import {
+  svatListProjects,
+  svatCreateProject,
+  svatDeleteProject,
+  svatRenameProject,
+  svatGetActiveProjectId,
+  svatSetActiveProjectId,
+  svatGetAll,
+  svatUpsertPaper,
+  svatGetCategories,
+  svatSetCategories,
+  svatGetHighlightedLinks,
+  svatSetHighlightedLinks,
+} from './svat_storage.js';
 
 document.addEventListener("DOMContentLoaded", () => {
   const categoryNameInput = document.getElementById("categoryName");
@@ -13,7 +27,25 @@ document.addEventListener("DOMContentLoaded", () => {
   const uploadStorage = document.getElementById("uploadStorage");
   const checkOnOff = document.getElementById("checkOnOff");
 
-  // =====================
+  // Projects
+  const projectTitleInput = document.getElementById("projectTitle");
+  const createProjectBtn = document.getElementById("createProject");
+  const projectListEl = document.getElementById("projectList");
+  const activeProjectLabel = document.getElementById("activeProjectLabel");
+
+
+  // Ordem preferencial para as categorias padrão (aparece primeiro na lista)
+  const DEFAULT_CATEGORY_ORDER = [
+    "Seed",
+    "Backward",
+    "Forward",
+    "Included",
+    "Excluded",
+    "Duplicate",
+    "Pending",
+  ];
+
+// =====================
   // Helpers
   // =====================
   function loadOnOff() {
@@ -50,17 +82,24 @@ document.addEventListener("DOMContentLoaded", () => {
   // Categories
   // =====================
   function loadCategories() {
-    storage.get("categories").then((data) => {
+    svatGetCategories().then((categories) => {
       categoryList.innerHTML = "";
-      const categories = (data && data.categories) ? data.categories : {};
-      const names = Object.keys(categories).sort((a, b) => a.localeCompare(b));
+      const names = Object.keys(categories).sort((a, b) => {
+        const ia = DEFAULT_CATEGORY_ORDER.indexOf(a);
+        const ib = DEFAULT_CATEGORY_ORDER.indexOf(b);
+        const aIs = ia !== -1;
+        const bIs = ib !== -1;
+        if (aIs && bIs) return ia - ib;
+        if (aIs) return -1;
+        if (bIs) return 1;
+        return a.localeCompare(b);
+      });
 
       function removeCategory(name) {
-        storage.get("categories").then(d => {
-          const cats = d.categories || {};
+        svatGetCategories().then(cats => {
           if (!cats[name]) return;
           delete cats[name];
-          storage.set({ categories: cats }).then(() => {
+          svatSetCategories(cats).then(() => {
             chrome.runtime.sendMessage({ action: "updateContextMenu" });
             loadCategories();
           });
@@ -113,29 +152,37 @@ document.addEventListener("DOMContentLoaded", () => {
   // Links
   // =====================
   function deleteMarkedLink(urlToDelete, done) {
-    const target = normalizeUrl(urlToDelete);
-    chrome.storage.local.get(["highlightedLinks", "svat_papers"], (data) => {
-      const highlightedLinks = data.highlightedLinks || {};
-      for (const k of Object.keys(highlightedLinks)) {
+    (async () => {
+      const target = normalizeUrl(urlToDelete);
+      const [highlightedLinks, state] = await Promise.all([svatGetHighlightedLinks(), svatGetAll()]);
+      const nextHL = { ...(highlightedLinks || {}) };
+
+      for (const k of Object.keys(nextHL)) {
         const nk = normalizeUrl(k);
         if (k === urlToDelete || nk === target || nk.startsWith(target) || target.startsWith(nk)) {
-          delete highlightedLinks[k];
+          delete nextHL[k];
         }
       }
 
-      const papers = Array.isArray(data.svat_papers) ? data.svat_papers : [];
+      const papers = Array.isArray(state.papers) ? state.papers : [];
       const filteredPapers = papers.filter((p) => normalizeUrl(p?.url) !== target);
 
-      storage.set({ highlightedLinks, svat_papers: filteredPapers }).then(() => { done && done(); });
-    });
+      await Promise.all([
+        svatSetHighlightedLinks(nextHL),
+        svatSetAll({ ...state, papers: filteredPapers }),
+      ]);
+
+      done && done();
+    })();
   }
 
   function loadHighlightedLinks() {
-    storage.get(["highlightedLinks", "svat_papers"]).then((data) => {
+    Promise.all([svatGetHighlightedLinks(), svatGetAll()]).then(([links, state]) => {
       highlightedList.innerHTML = "";
-      const links = data.highlightedLinks || {};
+      // links already loaded per project
+      links = links || {};
 
-      const papers = Array.isArray(data.svat_papers) ? data.svat_papers : [];
+      const papers = Array.isArray(state.papers) ? state.papers : [];
       const titleByUrl = new Map();
       for (const p of papers) {
         const nu = normalizeUrl(p?.url);
@@ -240,10 +287,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const color = categoryColorInput.value;
     if (!name) return;
 
-    storage.get("categories").then((data) => {
-      const categories = data.categories || {};
-      categories[name] = color;
-      storage.set({ categories }).then(() => {
+    svatGetCategories().then((categories) => {
+      const cats = categories || {};
+      cats[name] = color;
+      svatSetCategories(cats).then(() => {
         categoryNameInput.value = "";
         loadCategories();
       });
@@ -251,10 +298,15 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   removeLinks.addEventListener("click", () => {
-    if (!confirm("Tem certeza que deseja remover TODOS os links marcados?")) return;
-    chrome.storage.local.set({ highlightedLinks: {}, svat_papers: [] }, () => {
+    if (!confirm("Tem certeza que deseja remover TODOS os links marcados do projeto ATIVO?")) return;
+    (async () => {
+      const state = await svatGetAll();
+      await Promise.all([
+        svatSetHighlightedLinks({}),
+        svatSetAll({ ...state, papers: [] }),
+      ]);
       loadHighlightedLinks();
-    });
+    })();
   });
 
   if (highlightSearch) {
@@ -413,10 +465,128 @@ document.addEventListener("DOMContentLoaded", () => {
     if (panels.some((p) => p.id === id)) activate(id);
   }
 
+
+  // =====================
+  // Projects (CRUD + ativo)
+  // =====================
+  async function renderProjects() {
+    if (!projectListEl) return;
+
+    const { projects, activeProjectId } = await svatListProjects();
+    const active = projects.find(p => p.id === activeProjectId);
+    if (activeProjectLabel) activeProjectLabel.textContent = `Projeto ativo: ${active ? (active.title || active.id) : "—"}`;
+
+    projectListEl.innerHTML = "";
+
+    for (const p of projects) {
+      const row = document.createElement("div");
+      row.style.display = "flex";
+      row.style.alignItems = "center";
+      row.style.gap = "10px";
+      row.style.padding = "10px";
+      row.style.border = "1px solid rgba(255,255,255,0.14)";
+      row.style.borderRadius = "10px";
+      row.style.marginBottom = "10px";
+      row.style.background = "rgba(255,255,255,0.04)";
+
+      const left = document.createElement("div");
+      left.style.flex = "1";
+
+      const name = document.createElement("div");
+      name.textContent = p.title || p.id;
+      name.style.fontWeight = "900";
+
+      const meta = document.createElement("div");
+      meta.textContent = p.id;
+      meta.style.opacity = "0.75";
+      meta.style.fontSize = "12px";
+
+      left.appendChild(name);
+      left.appendChild(meta);
+
+      const actions = document.createElement("div");
+      actions.style.display = "flex";
+      actions.style.gap = "8px";
+
+      const btnActive = document.createElement("button");
+      btnActive.className = "btn";
+      btnActive.textContent = (p.id === activeProjectId) ? "Ativo" : "Ativar";
+      btnActive.disabled = (p.id === activeProjectId);
+      btnActive.addEventListener("click", async () => {
+        await svatSetActiveProjectId(p.id);
+        chrome.runtime.sendMessage({ action: "updateContextMenu" });
+        await renderProjects();
+        loadCategories();
+        loadHighlightedLinks();
+      });
+
+      const btnRename = document.createElement("button");
+      btnRename.className = "btn";
+      btnRename.textContent = "Renomear";
+      btnRename.addEventListener("click", async () => {
+        const n = prompt("Novo nome do projeto:", p.title || p.id);
+        if (!n) return;
+        await svatRenameProject(p.id, n.trim());
+        await renderProjects();
+        // Update popup/dashboard labels fast
+        chrome.runtime.sendMessage({ action: "updateContextMenu" });
+      });
+
+      const btnDel = document.createElement("button");
+      btnDel.className = "btn";
+      btnDel.textContent = "Excluir";
+      btnDel.style.background = "var(--danger)";
+      btnDel.addEventListener("click", async () => {
+        if (!confirm(`Excluir o projeto "${p.title || p.id}"?\n\nIsso apaga artigos, categorias e links marcados desse projeto.`)) return;
+        try {
+          await svatDeleteProject(p.id);
+          chrome.runtime.sendMessage({ action: "updateContextMenu" });
+          await renderProjects();
+          loadCategories();
+          loadHighlightedLinks();
+        } catch (e) {
+          alert(e?.message || "Não foi possível excluir.");
+        }
+      });
+
+      actions.appendChild(btnActive);
+      actions.appendChild(btnRename);
+      actions.appendChild(btnDel);
+
+      if (p.id === activeProjectId) {
+        const pill = document.createElement("span");
+        pill.className = "pill";
+        pill.textContent = "ATIVO";
+        pill.style.marginLeft = "8px";
+        name.appendChild(pill);
+      }
+
+      row.appendChild(left);
+      row.appendChild(actions);
+      projectListEl.appendChild(row);
+    }
+  }
+
+  if (createProjectBtn) {
+    createProjectBtn.addEventListener("click", async () => {
+      const title = (projectTitleInput?.value || "").trim();
+      const id = await svatCreateProject({ title: title || "Novo projeto" });
+      projectTitleInput.value = "";
+      chrome.runtime.sendMessage({ action: "updateContextMenu" });
+      await renderProjects();
+      loadCategories();
+      loadHighlightedLinks();
+      // jump to show it
+      location.hash = "#panel-projects";
+    });
+  }
+
+
   // =====================
   // Init loads
   // =====================
   loadOnOff();
+  renderProjects();
   loadCategories();
   loadHighlightedLinks();
 });
