@@ -24,6 +24,10 @@ document.getElementById("openOptions").addEventListener("click", () => {
   chrome.runtime.openOptionsPage();
 });
 
+document.getElementById("openProjects").addEventListener("click", () => {
+  chrome.runtime.openOptionsPage();
+});
+
 document.getElementById("exportJson").addEventListener("click", async () => {
   const state = await svatGetAll();
   const filename = `snowballing_${(state.project.id || "project").replace(/[^a-zA-Z0-9_-]/g, "_")}.json`;
