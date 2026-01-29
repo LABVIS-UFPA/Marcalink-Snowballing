@@ -398,120 +398,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // =====================
   const buttons = Array.from(document.querySelectorAll(".sideItem[data-target]"));
   const panels = Array.from(document.querySelectorAll(".panel[id]"));
-
-  // Projects elements
-  const projectListEl = document.getElementById('projectList');
-  const newProjectNameInput = document.getElementById('newProjectName');
-  const addProjectBtn = document.getElementById('addProjectBtn');
-
-  // =====================
-  // Projects
-  // =====================
-  function loadProjects() {
-    storage.get(['svat_project','svat_projects']).then((data) => {
-      const current = data.svat_project || { id: 'p_default', title: 'Projeto padrão' };
-      const projects = Array.isArray(data.svat_projects) ? data.svat_projects : [current];
-
-      projectListEl.innerHTML = '';
-
-      for (const p of projects) {
-        const li = document.createElement('li');
-        li.style.display = 'flex';
-        li.style.alignItems = 'center';
-        li.style.gap = '8px';
-        li.style.padding = '6px';
-
-        const titleWrap = document.createElement('div');
-        titleWrap.style.flex = '1';
-        titleWrap.style.display = 'flex';
-        titleWrap.style.flexDirection = 'column';
-
-        const title = document.createElement('div');
-        title.textContent = p.title || p.name || p.id;
-        title.style.fontWeight = '600';
-
-        const meta = document.createElement('div');
-        meta.textContent = `ID: ${p.id || p.name || '—'}`;
-        meta.style.fontSize = '12px';
-        meta.style.opacity = '0.85';
-
-        titleWrap.appendChild(title);
-        titleWrap.appendChild(meta);
-
-        const actions = document.createElement('div');
-        actions.style.display = 'flex';
-        actions.style.gap = '6px';
-
-        const btnRename = document.createElement('button');
-        btnRename.textContent = 'Renomear';
-        btnRename.className = 'btn';
-        btnRename.addEventListener('click', () => {
-          const newName = prompt('Novo nome do projeto', p.title || p.name || '');
-          if (!newName) return;
-          const updated = projects.map(x => x.id === p.id ? { ...x, title: newName } : x);
-          // also update current project title if matches
-          const updatedCurrent = (current.id === p.id) ? { ...current, title: newName } : current;
-          storage.set({ svat_projects: updated, svat_project: updatedCurrent }).then(() => loadProjects());
-        });
-
-        const btnRemove = document.createElement('button');
-        btnRemove.textContent = 'Remover';
-        btnRemove.className = 'btn danger';
-        btnRemove.addEventListener('click', () => {
-          if (!confirm(`Remover projeto "${p.title || p.name}"?`)) return;
-          const remaining = projects.filter(x => x.id !== p.id);
-          let newCurrent = current;
-          if (current.id === p.id) {
-            newCurrent = remaining[0] || { id: 'p_default', title: 'Projeto padrão' };
-          }
-          storage.set({ svat_projects: remaining, svat_project: newCurrent }).then(() => loadProjects());
-        });
-
-        const btnMark = document.createElement('button');
-        btnMark.textContent = (current.id === p.id) ? 'Atual' : 'Marcar atual';
-        btnMark.className = current.id === p.id ? 'btn primary' : 'btn';
-        btnMark.addEventListener('click', () => {
-          if (current.id === p.id) return;
-          storage.set({ svat_project: p }).then(() => loadProjects());
-        });
-
-        actions.appendChild(btnRename);
-        actions.appendChild(btnRemove);
-        actions.appendChild(btnMark);
-
-        li.appendChild(titleWrap);
-        li.appendChild(actions);
-
-        projectListEl.appendChild(li);
-      }
-    }).catch(()=>{});
-  }
-
-  // Create new project
-  if (addProjectBtn) {
-    addProjectBtn.addEventListener('click', () => {
-      const name = (newProjectNameInput?.value || '').trim();
-      if (!name) { alert('Informe o nome do projeto.'); return; }
-      const id = name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9_-]/g,'') + '_' + Date.now();
-      const proj = { id, title: name, createdAt: new Date().toISOString() };
-      storage.get(['svat_projects']).then((data) => {
-        const projects = Array.isArray(data.svat_projects) ? data.svat_projects.slice() : [];
-        projects.push(proj);
-        storage.set({ svat_projects: projects }).then(() => {
-          if (newProjectNameInput) newProjectNameInput.value = '';
-          loadProjects();
-        });
-      }).catch(()=>{});
-    });
-
-    // allow Enter to submit
-    if (newProjectNameInput) {
-      newProjectNameInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') addProjectBtn.click();
-      });
-    }
-  }
-
+  
 
   function activate(targetId) {
     panels.forEach((p) => p.classList.toggle("active", p.id === targetId));
@@ -533,5 +420,4 @@ document.addEventListener("DOMContentLoaded", () => {
   loadOnOff();
   loadCategories();
   loadHighlightedLinks();
-  loadProjects();
 });
