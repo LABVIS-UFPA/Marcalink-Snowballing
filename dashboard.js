@@ -876,10 +876,10 @@ function bindEvents() {
   // Top actions
   $("#btnOptions").addEventListener("click", () => chrome.runtime.openOptionsPage());
   $("#btnClear").addEventListener("click", async () => {
-    if (!confirm("Isso vai apagar papers/iterações/conexões/critérios. Continuar?")) return;
-    await chrome.storage.local.remove(Object.values(SVAT_KEYS));
-    await loadState();
-    renderAll();
+    // if (!confirm("Isso vai apagar papers/iterações/conexões/critérios. Continuar?")) return;
+    // await chrome.storage.local.remove(Object.values(SVAT_KEYS));
+    // await loadState();
+    // renderAll();
   });
 
   $("#btnImport").addEventListener("click", () => $("#fileImport").click());
