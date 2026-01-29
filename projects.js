@@ -96,16 +96,20 @@ document.addEventListener('DOMContentLoaded', () => {
     newProjectName.value = '';
   });
 
-  // inicializa lista (espera backend no futuro)
-  chrome.runtime?.sendMessage?.({ action: 'projects.list' }, (resp) => {
+
+  // Quando integrar o backend depois, descomente:
+
+  /* chrome.runtime?.sendMessage?.({ action: 'projects.list' }, (resp) => {
     const items = (resp && resp.projects) ? resp.projects : [];
     projectList.innerHTML = '';
     if (!items.length) return placeholder();
     for (const it of items) projectList.appendChild(makeProjectItem(it));
-  });
+  }); */
 
   // safety: se extensão não responder, mostra placeholder
-  setTimeout(() => {
+
+  /*setTimeout(() => {
     if (!projectList.children.length) placeholder();
-  }, 250);
+  }, 250);*/
+
 });
