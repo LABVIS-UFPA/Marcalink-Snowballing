@@ -7,13 +7,14 @@ const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
 
 async function loadState() {
-  await svatMigrateIfNeeded();
-  state = await svatGetAll();
-  // Ensure current iteration exists
-  if (state.project.currentIterationId && !state.iterations.find(i => i.id === state.project.currentIterationId)) {
-    state.iterations.push({ id: state.project.currentIterationId, type: "snowballing", mode: "both", createdAt: svatNowIso() });
-    await svatSetAll(state);
-  }
+  //TODO: migrar para usar o infrastructure/storage.mjs
+  // await svatMigrateIfNeeded();
+  // state = await svatGetAll();
+  // // Ensure current iteration exists
+  // if (state.project.currentIterationId && !state.iterations.find(i => i.id === state.project.currentIterationId)) {
+  //   state.iterations.push({ id: state.project.currentIterationId, type: "snowballing", mode: "both", createdAt: svatNowIso() });
+  //   await svatSetAll(state);
+  // }
 }
 
 function setActiveView(view) {
@@ -39,10 +40,11 @@ function ensureHistory(p) {
 }
 
 function pushHistory(paper, action, details = {}) {
-  const h = ensureHistory(paper);
-  h.push({ ts: svatNowIso(), action, details });
-  // Keep it bounded
-  if (h.length > 200) paper.history = h.slice(h.length - 200);
+  //TODO: migrar para usar o infrastructure/storage.mjs
+  // const h = ensureHistory(paper);
+  // h.push({ ts: svatNowIso(), action, details });
+  // // Keep it bounded
+  // if (h.length > 200) paper.history = h.slice(h.length - 200);
 }
 
 function renderHeader() {
@@ -217,16 +219,17 @@ function renderPendingTable() {
 
   tbody.querySelectorAll("button[data-act]").forEach(btn => {
     btn.addEventListener("click", async () => {
-      const id = btn.getAttribute("data-id");
-      const act = btn.getAttribute("data-act");
-      const paper = state.papers.find(x => x.id === id);
-      if (!paper) return;
-      const prev = paper.status || "pending";
-      paper.status = act === "include" ? "included" : "excluded";
-      pushHistory(paper, "status_change", { from: prev, to: paper.status, via: "pendingTable" });
-      paper.updatedAt = svatNowIso();
-      await persist();
-      renderAll();
+      //TODO: migrar para usar o infrastructure/storage.mjs
+      // const id = btn.getAttribute("data-id");
+      // const act = btn.getAttribute("data-act");
+      // const paper = state.papers.find(x => x.id === id);
+      // if (!paper) return;
+      // const prev = paper.status || "pending";
+      // paper.status = act === "include" ? "included" : "excluded";
+      // pushHistory(paper, "status_change", { from: prev, to: paper.status, via: "pendingTable" });
+      // paper.updatedAt = svatNowIso();
+      // await persist();
+      // renderAll();
     });
   });
 }
@@ -393,16 +396,17 @@ function renderDuplicates(pairs) {
 
   tbody.querySelectorAll("button[data-dup]").forEach(btn => {
     btn.addEventListener("click", async () => {
-      const [aId, bId] = btn.getAttribute("data-dup").split("|");
-      const b = state.papers.find(x => x.id === bId);
-      if (!b) return;
-      const prev = b.status || "pending";
-      b.status = "duplicate";
-      pushHistory(b, "status_change", { from: prev, to: "duplicate", via: "dupe_suggestion", matchWith: aId });
-      b.updatedAt = svatNowIso();
-      await persist();
-      renderAll();
-      setActiveView("insights");
+      //TODO: migrar para usar o infrastructure/storage.mjs
+      // const [aId, bId] = btn.getAttribute("data-dup").split("|");
+      // const b = state.papers.find(x => x.id === bId);
+      // if (!b) return;
+      // const prev = b.status || "pending";
+      // b.status = "duplicate";
+      // pushHistory(b, "status_change", { from: prev, to: "duplicate", via: "dupe_suggestion", matchWith: aId });
+      // b.updatedAt = svatNowIso();
+      // await persist();
+      // renderAll();
+      // setActiveView("insights");
     });
   });
 }
@@ -544,7 +548,7 @@ async function onCellChange(e) {
   } else {
     pushHistory(paper, "update_field", { field, from: prev, to: paper[field] });
   }
-  paper.updatedAt = svatNowIso();
+  // paper.updatedAt = svatNowIso();
   await persist();
   renderOverview();
   renderCriteria();
@@ -570,7 +574,7 @@ async function bulkSet(field, value) {
     } else {
       pushHistory(p, "bulk_update", { field, from: prev, to: value });
     }
-    p.updatedAt = svatNowIso();
+    // p.updatedAt = svatNowIso();
   }
   await persist();
   renderAll();
@@ -596,23 +600,24 @@ function renderIterations() {
 
   tbody.querySelectorAll("button[data-act]").forEach(btn => {
     btn.addEventListener("click", async () => {
-      const act = btn.getAttribute("data-act");
-      const id = btn.getAttribute("data-id");
-      if (act === "setCurrent") {
-        state.project.currentIterationId = id;
-        await persist();
-        renderHeader();
-        renderIterationFilterOptions();
-        alert(`Iteração atual definida: ${id}`);
-      }
-      if (act === "del") {
-        if (!confirm(`Remover iteração ${id}? (Artigos permanecem com iterationId)`)) return;
-        state.iterations = state.iterations.filter(x => x.id !== id);
-        if (!state.iterations.length) state.iterations.push({ id: "I1", type: "seed", mode: "seed", createdAt: svatNowIso() });
-        if (!state.iterations.find(x => x.id === state.project.currentIterationId)) state.project.currentIterationId = state.iterations[0].id;
-        await persist();
-        renderAll();
-      }
+      //TODO: migrar para usar o infrastructure/storage.mjs
+      // const act = btn.getAttribute("data-act");
+      // const id = btn.getAttribute("data-id");
+      // if (act === "setCurrent") {
+      //   state.project.currentIterationId = id;
+      //   await persist();
+      //   renderHeader();
+      //   renderIterationFilterOptions();
+      //   alert(`Iteração atual definida: ${id}`);
+      // }
+      // if (act === "del") {
+      //   if (!confirm(`Remover iteração ${id}? (Artigos permanecem com iterationId)`)) return;
+      //   state.iterations = state.iterations.filter(x => x.id !== id);
+      //   if (!state.iterations.length) state.iterations.push({ id: "I1", type: "seed", mode: "seed", createdAt: svatNowIso() });
+      //   if (!state.iterations.find(x => x.id === state.project.currentIterationId)) state.project.currentIterationId = state.iterations[0].id;
+      //   await persist();
+      //   renderAll();
+      // }
     });
   });
 }
@@ -855,7 +860,8 @@ function renderGraph() {
 }
 
 async function persist() {
-  await svatSetAll(state);
+  //TODO: migrar para usar o infrastructure/storage.mjs
+  // await svatSetAll(state);
 }
 
 function renderAll() {
@@ -895,7 +901,7 @@ function bindEvents() {
     state = {
       project: parsed.project,
       papers: parsed.papers || [],
-      iterations: parsed.iterations || [{ id: parsed.project.currentIterationId || "I1", type: "seed", mode: "seed", createdAt: svatNowIso() }],
+      iterations: parsed.iterations || [],
       citations: parsed.citations || [],
       criteria: parsed.criteria || {},
     };
@@ -905,34 +911,35 @@ function bindEvents() {
   });
 
   $("#btnExportJson").addEventListener("click", async () => {
-    const filename = `snowballing_${(state.project.id || "project").replace(/[^a-zA-Z0-9_-]/g, "_")}.json`;
-    svatDownload(filename, JSON.stringify(state, null, 2));
+    //TODO: remover a exportação JSON
+    // const filename = `snowballing_${(state.project.id || "project").replace(/[^a-zA-Z0-9_-]/g, "_")}.json`;
+    // svatDownload(filename, JSON.stringify(state, null, 2));
   });
   $("#btnExportCsv").addEventListener("click", async () => {
-    if (!state.papers.length) return alert("Sem papers para exportar.");
-    const rows = state.papers.map(p => ({
-      id: p.id,
-      title: p.title,
-      year: p.year,
-      origin: p.origin,
-      iterationId: p.iterationId,
-      status: p.status,
-      criteriaId: p.criteriaId,
-      tags: Array.isArray(p.tags) ? p.tags.join(";") : "",
-      url: p.url,
-      createdAt: p.createdAt,
-      updatedAt: p.updatedAt,
-    }));
-    const csv = svatToCsv(rows);
-    const filename = `triagem_${(state.project.id || "project").replace(/[^a-zA-Z0-9_-]/g, "_")}.csv`;
-    svatDownload(filename, csv, "text/csv");
+    // if (!state.papers.length) return alert("Sem papers para exportar.");
+    // const rows = state.papers.map(p => ({
+    //   id: p.id,
+    //   title: p.title,
+    //   year: p.year,
+    //   origin: p.origin,
+    //   iterationId: p.iterationId,
+    //   status: p.status,
+    //   criteriaId: p.criteriaId,
+    //   tags: Array.isArray(p.tags) ? p.tags.join(";") : "",
+    //   url: p.url,
+    //   createdAt: p.createdAt,
+    //   updatedAt: p.updatedAt,
+    // }));
+    // const csv = svatToCsv(rows);
+    // const filename = `triagem_${(state.project.id || "project").replace(/[^a-zA-Z0-9_-]/g, "_")}.csv`;
+    // svatDownload(filename, csv, "text/csv");
   });
   $("#btnExportBib").addEventListener("click", async () => {
-    const included = state.papers.filter(p => p.status === "included");
-    if (!included.length) return alert("Sem artigos incluídos.");
-    const bib = svatToBibtex(included);
-    const filename = `included_${(state.project.id || "project").replace(/[^a-zA-Z0-9_-]/g, "_")}.bib`;
-    svatDownload(filename, bib, "application/x-bibtex");
+    // const included = state.papers.filter(p => p.status === "included");
+    // if (!included.length) return alert("Sem artigos incluídos.");
+    // const bib = svatToBibtex(included);
+    // const filename = `included_${(state.project.id || "project").replace(/[^a-zA-Z0-9_-]/g, "_")}.bib`;
+    // svatDownload(filename, bib, "application/x-bibtex");
   });
 
   // Insights
@@ -985,14 +992,14 @@ function bindEvents() {
 
   // Iterations
   $("#btnAddIteration").addEventListener("click", async () => {
-    const id = $("#newIterId").value.trim();
-    const mode = $("#newIterMode").value;
-    if (!id) return alert("Informe um ID (ex: I2).");
-    if (state.iterations.find(i => i.id === id)) return alert("Essa iteração já existe.");
-    state.iterations.push({ id, type: mode === "seed" ? "seed" : "snowballing", mode, createdAt: svatNowIso() });
-    $("#newIterId").value = "";
-    await persist();
-    renderAll();
+    // const id = $("#newIterId").value.trim();
+    // const mode = $("#newIterMode").value;
+    // if (!id) return alert("Informe um ID (ex: I2).");
+    // if (state.iterations.find(i => i.id === id)) return alert("Essa iteração já existe.");
+    // state.iterations.push({ id, type: mode === "seed" ? "seed" : "snowballing", mode, createdAt: svatNowIso() });
+    // $("#newIterId").value = "";
+    // await persist();
+    // renderAll();
   });
   $("#btnSetCurrentIteration").addEventListener("click", async () => {
     const id = $("#newIterId").value.trim();
