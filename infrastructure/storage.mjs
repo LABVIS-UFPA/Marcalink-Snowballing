@@ -68,6 +68,19 @@ class NodeFsStrategy {
   async saveProject(projectName, projectData) {
     const relPath = this.path.join(projectName, 'project.json');
     this.writeJson(relPath, projectData);
+
+    // ensure config.json contains project entry
+    try {
+      const cfg = this.readJson('config.json') || { projects: [] };
+      if (!Array.isArray(cfg.projects)) cfg.projects = [];
+      if (!cfg.projects.some(p => p.name === projectName)) {
+        cfg.projects.push({ name: projectName });
+        this.writeJson('config.json', cfg);
+      }
+    } catch (e) {
+      // ignore errors updating config
+    }
+
     return { status: "ok", message: "Project saved." };
   }
 
@@ -79,15 +92,40 @@ class NodeFsStrategy {
 
   async deleteProject(projectName) {
     const full = this.path.join(this.baseDir, projectName);
+    // remove from config.json
+    try {
+      const cfg = this.readJson('config.json') || { projects: [] };
+      cfg.projects = Array.isArray(cfg.projects) ? cfg.projects.filter(p => p.name !== projectName) : [];
+      this.writeJson('config.json', cfg);
+    } catch (e) {
+      // ignore
+    }
+
     if (this.fs.existsSync(full)) {
       this.fs.rmSync(full, { recursive: true });
       return { status: "ok", message: "Project deleted." };
     }
-    return { status: "error", message: "Project not found." };
+    return { status: "ok", message: "Project not found." };
+  }
+
+  async archiveProject(projectName) {
+    // remove project from config.json but keep files on disk
+    try {
+      const cfg = this.readJson('config.json') || { projects: [] };
+      cfg.projects = Array.isArray(cfg.projects) ? cfg.projects.filter(p => p.name !== projectName) : [];
+      this.writeJson('config.json', cfg);
+      return { status: 'ok', message: 'Project archived.' };
+    } catch (e) {
+      return { status: 'error', message: e.message };
+    }
   }
 
   async listProjects() {
     try {
+      // Prefer config.json managed list
+      const cfg = this.readJson('config.json');
+      if (cfg && Array.isArray(cfg.projects)) return { status: 'ok', data: cfg.projects.map(p => p.name) };
+
       const entries = this.fs.readdirSync(this.baseDir, { withFileTypes: true });
       const dirs = entries
         .filter(e => e.isDirectory())
@@ -216,6 +254,10 @@ class WebSocketStrategy {
 
   async saveProject(projectName, projectData) {
     return this.send('save_project', { projectName, data: projectData });
+  }
+
+  async archiveProject(projectName) {
+    return this.send('archive_project', { projectName });
   }
 
   async loadProject(projectName) {
@@ -484,6 +526,24 @@ class StorageService {
     if (!this.initialized) await this.init();
     return this.strategy.listPapers(projectName);
   }
+
+  // Project methods delegate to active strategy (NodeFsStrategy implements config.json logic)
+  async listProjects() {
+    if (!this.initialized) await this.init();
+    const res = await this.strategy.listProjects();
+    if (Array.isArray(res)) return res;
+    if (res && res.data) return res.data;
+    return [];
+  }
+
+  async archiveProject(projectName) {
+    if (!this.initialized) await this.init();
+    if (this.strategy && typeof this.strategy.archiveProject === 'function') {
+      return this.strategy.archiveProject(projectName);
+    }
+    return { status: 'error', message: 'Archive not supported by strategy.' };
+  }
+  // ============================================================================
 }
 
 // Singleton instance

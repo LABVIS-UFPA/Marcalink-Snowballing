@@ -74,19 +74,19 @@ function verifyName(payload) {
 
 const messageHandler = {
   "new_project": async (payload) => {
-    return verifyName(payload) || projectManager.createProject(payload.name);
+    return verifyName(payload) || await storage.saveProject(payload.name, { papers: [] });
   },
   "open_project": async (payload) => {
-    return verifyName(payload) || projectManager.openProject(payload.name);
+    return verifyName(payload) || await storage.loadProject(payload.name);
   },
   "list_project": async () => {
-    return { act: "list_project", payload: projectManager.listProjects() };
+    return { act: "list_project", payload: await storage.listProjects() };
   },
   "delete_project": async (payload) => {
-    return verifyName(payload) || projectManager.deleteProject(payload.name);
+    return verifyName(payload) || await storage.deleteProject(payload.name);
   },
   "archive_project": async (payload) => {
-    return verifyName(payload) || projectManager.archiveProject(payload.name);
+    return verifyName(payload) || await storage.archiveProject(payload.name);
   },
   "save_paper": async (payload) => {
     return await storage.savePaper(payload.projectName, payload.paperId, payload.data);
@@ -120,116 +120,3 @@ function verifyNameSanitized(projectName) {
     return { status: "error", message: "Invalid project name. Use only letters, numbers, dots, underscores, and hyphens." };
   }
 }
-
-class ProjectManager {
-  constructor(baseDir) {
-    this.baseDir = baseDir;
-    this.activeProject = null;
-
-    // cria a pasta base se não existir
-    try {
-      if (!fs.existsSync(baseDir)) {
-        fs.mkdirSync(baseDir, { recursive: true });
-        console.log(`📁 Pasta criada: ${baseDir}`);
-      } else {
-        console.log(`📁 Pasta existe: ${baseDir}`);
-      }
-    } catch (err) {
-      console.error("Erro ao criar/verificar pasta user_data:", err);
-      process.exit(1);
-    }
-
-    // carrega ou cria o json de configuração usando storage
-    const cfg = storage.strategy.readJson("config.json");
-    if (!cfg) {
-      this.config = { projects: [] };
-      storage.strategy.writeJson("config.json", this.config);
-      console.log(`⚙️ Configuração criada: ${path.join(baseDir, "config.json")}`);
-    } else {
-      this.config = cfg;
-    }
-  }
-
-  saveConfig() {
-    storage.strategy.writeJson("config.json", this.config);
-  }
-
-  // retorna lista de projetos conhecidos
-  listProjects() {
-    return (this.config && Array.isArray(this.config.projects)) ? this.config.projects.map(p => p.name) : [];
-  }
-
-  openProject(projectName) {
-    const project = this.config.projects.find(p => p.name === projectName);
-    if (!project) {
-      return { status: "error", message: "Project not found in config." };
-    }
-    // load project data from storage if exists
-    const rel = path.join(projectName, "project.json");
-    const data = storage.strategy.readJson(rel) || { papers: [] };
-    this.activeProject = Project.fromJSON(projectName, path.join(this.baseDir, projectName), data);
-    return { status: "ok", message: `Project ${projectName} opened.` };
-  }
-
-  removeFromConfig(projectName) {
-    if (!this.config || !Array.isArray(this.config.projects)) return;
-    if (!this.config.projects.some(p => p.name === projectName)) return { status: "error", message: "Project not found" };
-    this.config.projects = this.config.projects.filter(p => p.name !== projectName);
-    this.saveConfig();
-  }
-
-  deleteProject(projectName) {
-    const error =  this.removeFromConfig(projectName);
-    if (error) return error;
-
-    // Se o projeto existir remove toda a pasta do projeto
-    const projectDir = path.join(this.baseDir, projectName);
-    if (fs.existsSync(projectDir)) {
-      fs.rmSync(projectDir, { recursive: true });
-      console.log(`🗑️ Projeto removido: ${projectName}`);
-      return { status: "ok", message: "Project removed." };
-    } else {
-      return { status: "ok", message: "Project not found." };
-    }
-  }
-
-  archiveProject(projectName) {
-    return this.removeFromConfig(projectName) || { status: "ok", message: "Project archived." } ;
-  }
-
-  createProject(projectName) {
-    //Verifica se o nome do projeto está sanitizado, senão retorna erro
-    projectName = projectName.trim();
-    const error = verifyNameSanitized(projectName);
-    if (error) return error;
-
-    //Verifica se o projeto está na lista de projetos
-    const existingProject = this.config.projects.find(p => p.name === projectName);
-    if (existingProject) {
-      return { status: "error", message: "Project already exists." };
-    }
-
-    //Verifica se o projeto já existe, caso exista reativa o projeto
-    const projectDir = path.join(this.baseDir, projectName);
-    let message = "";
-    if (!fs.existsSync(projectDir)) {
-      fs.mkdirSync(projectDir);
-      console.log(`📁 Projeto criado: ${projectName}`);
-      message = "Project created.";
-      // initialize empty project file
-      storage.strategy.writeJson(path.join(projectName, "project.json"), { papers: [] });
-    } else {
-      console.log(`📁 Projeto já existe, reativando: ${projectName}`);
-      message = "Project reactivated.";
-    }
-
-    this.activeProject = Project.fromJSON(projectName, projectDir, storage.strategy.readJson(path.join(projectName, "project.json")) || { papers: [] });
-    this.config.projects.push({ name: projectName });
-    this.saveConfig();
-    
-    return { status: "ok", message, project: projectName };
-  }
-}
-
-// instancia o gerenciador agora que as classes estão definidas
-const projectManager = new ProjectManager(path.join(__dirname, "user_data"));
