@@ -25,7 +25,7 @@ document.getElementById("openOptions").addEventListener("click", () => {
 });
 
 document.getElementById("openProjects").addEventListener("click", () => {
-  chrome.runtime.openOptionsPage();
+  chrome.tabs.create({ url: chrome.runtime.getURL("projects.html") });
 });
 
 document.getElementById("exportJson").addEventListener("click", async () => {
