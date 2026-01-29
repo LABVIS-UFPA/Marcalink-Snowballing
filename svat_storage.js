@@ -1,7 +1,7 @@
 // Storage helpers for the Snowballing Visual Analytics Tool (SVAT)
 // Works in extension pages (popup/dashboard/options).
 
-import { storage } from './infrastructure/storage.js';
+import { storage } from './infrastructure/storage.mjs';
 
 const SVAT_KEYS = {
   project: "svat_project",

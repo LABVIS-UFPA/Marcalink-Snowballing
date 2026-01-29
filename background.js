@@ -1,6 +1,6 @@
-import {hashId, inferFromCategory} from './core/utils.js';
-import {storage} from './infrastructure/storage.js';
-import { wsManager } from './infrastructure/socketManager.js';
+import {hashId, inferFromCategory} from './core/utils.mjs';
+import {storage} from './infrastructure/storage.mjs';
+import { wsManager } from './infrastructure/socketManager.mjs';
 
 const DEFAULT_SNOWBALLING_CATEGORIES = {
   "Seed": "#4CAF50",

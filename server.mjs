@@ -1,11 +1,21 @@
-const WebSocket = require("ws");
-const fs = require("fs");
-const path = require("path");
+import { WebSocketServer } from "ws";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import { storage } from "./infrastructure/storage.mjs";
+import { Project } from "./core/entities.mjs";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const PORT = 8080;
-const wss = new WebSocket.Server({ port: PORT });
+const wss = new WebSocketServer({ port: PORT });
 
 console.log(`✅ WebSocket rodando em ws://localhost:${PORT}`);
+
+// Initialize storage with Node.js base directory
+const baseDir = path.join(__dirname, "user_data");
+await storage.init(baseDir);
 
 wss.on("connection", (ws) => {
   console.log("🔌 Cliente conectou!");
@@ -14,7 +24,7 @@ wss.on("connection", (ws) => {
   ws.send(JSON.stringify({ act: "connected", status: "ok", message: "Connection established" }));
 
   // recebe mensagens do client (espera JSON com um atributo principal: "act")
-  ws.on("message", (msg) => {
+  ws.on("message", async (msg) => {
     const text = msg.toString();
     console.log("📩 Recebido:", text);
 
@@ -32,12 +42,8 @@ wss.on("connection", (ws) => {
       return;
     }
 
-    // const sanitize = (n) => (typeof n === "string" ? n.replace(/[^a-zA-Z0-9._-]/g, "_") : "");
-    // const projectName = sanitize(payload.name || payload.projectName || payload.project || "");
-    // const respond = (obj) => ws.send(JSON.stringify(obj));
-
     if(messageHandler[act] instanceof Function) {
-      const response = messageHandler[act](payload.payload);
+      const response = await messageHandler[act](payload.payload);
       if (response) {
         ws.send(JSON.stringify(response));
       }
@@ -65,24 +71,55 @@ function verifyName(payload) {
     }
   }
 }
+
 const messageHandler = {
-  "new_project": (payload) => {
+  "new_project": async (payload) => {
     return verifyName(payload) || projectManager.createProject(payload.name);
   },
-  "open_project": (payload) => {
+  "open_project": async (payload) => {
     return verifyName(payload) || projectManager.openProject(payload.name);
   },
-  "list_project": () => {
+  "list_project": async () => {
     return { act: "list_project", payload: projectManager.listProjects() };
   },
-  "delete_project": (payload) => {
+  "delete_project": async (payload) => {
     return verifyName(payload) || projectManager.deleteProject(payload.name);
   },
-  "archive_project": (payload) => {
+  "archive_project": async (payload) => {
     return verifyName(payload) || projectManager.archiveProject(payload.name);
   },
-}
+  "save_paper": async (payload) => {
+    return await storage.savePaper(payload.projectName, payload.paperId, payload.data);
+  },
+  "load_paper": async (payload) => {
+    return await storage.loadPaper(payload.projectName, payload.paperId);
+  },
+  "delete_paper": async (payload) => {
+    return await storage.deletePaper(payload.projectName, payload.paperId);
+  },
+  "list_papers": async (payload) => {
+    return await storage.listPapers(payload.projectName);
+  },
+  "save_project": async (payload) => {
+    return await storage.saveProject(payload.projectName, payload.data);
+  },
+  "load_project": async (payload) => {
+    return await storage.loadProject(payload.projectName);
+  },
+  "storage_get": async (payload) => {
+    const result = await storage.get(payload.keys);
+    return { status: "ok", data: result };
+  },
+  "storage_set": async (payload) => {
+    return await storage.set(payload.items);
+  },
+};
 
+function verifyNameSanitized(projectName) {
+  if (!projectName || !/^[a-zA-Z0-9._-]+$/.test(projectName)) {
+    return { status: "error", message: "Invalid project name. Use only letters, numbers, dots, underscores, and hyphens." };
+  }
+}
 
 class ProjectManager {
   constructor(baseDir) {
@@ -102,27 +139,19 @@ class ProjectManager {
       process.exit(1);
     }
 
-    //cria o json de configuração se não existir
-    const configPath = path.join(baseDir, "config.json"); 
-    if (!fs.existsSync(configPath)) {
+    // carrega ou cria o json de configuração usando storage
+    const cfg = storage.strategy.readJson("config.json");
+    if (!cfg) {
       this.config = { projects: [] };
-      fs.writeFileSync(configPath, JSON.stringify(this.config, null, 2), 'utf8');
-      console.log(`⚙️ Configuração criada: ${configPath}`);
+      storage.strategy.writeJson("config.json", this.config);
+      console.log(`⚙️ Configuração criada: ${path.join(baseDir, "config.json")}`);
     } else {
-      try {
-        const raw = fs.readFileSync(configPath, 'utf8');
-        this.config = JSON.parse(raw);
-      } catch (err) {
-        this.config = { projects: [] };
-        console.warn(`⚠️ Falha ao ler config.json, recriando: ${err.message}`);
-        fs.writeFileSync(configPath, JSON.stringify(this.config, null, 2), 'utf8');
-      }
+      this.config = cfg;
     }
   }
 
   saveConfig() {
-    const configPath = path.join(this.baseDir, "config.json");
-    fs.writeFileSync(configPath, JSON.stringify(this.config, null, 2), 'utf8');
+    storage.strategy.writeJson("config.json", this.config);
   }
 
   // retorna lista de projetos conhecidos
@@ -135,7 +164,10 @@ class ProjectManager {
     if (!project) {
       return { status: "error", message: "Project not found in config." };
     }
-    this.activeProject = new Project(projectName, path.join(this.baseDir, projectName));
+    // load project data from storage if exists
+    const rel = path.join(projectName, "project.json");
+    const data = storage.strategy.readJson(rel) || { papers: [] };
+    this.activeProject = Project.fromJSON(projectName, path.join(this.baseDir, projectName), data);
     return { status: "ok", message: `Project ${projectName} opened.` };
   }
 
@@ -171,7 +203,6 @@ class ProjectManager {
     const error = verifyNameSanitized(projectName);
     if (error) return error;
 
-
     //Verifica se o projeto está na lista de projetos
     const existingProject = this.config.projects.find(p => p.name === projectName);
     if (existingProject) {
@@ -185,42 +216,18 @@ class ProjectManager {
       fs.mkdirSync(projectDir);
       console.log(`📁 Projeto criado: ${projectName}`);
       message = "Project created.";
+      // initialize empty project file
+      storage.strategy.writeJson(path.join(projectName, "project.json"), { papers: [] });
     } else {
       console.log(`📁 Projeto já existe, reativando: ${projectName}`);
       message = "Project reactivated.";
-    };
-    
-    
-    this.activeProject = new Project(projectName, projectDir);
+    }
+
+    this.activeProject = Project.fromJSON(projectName, projectDir, storage.strategy.readJson(path.join(projectName, "project.json")) || { papers: [] });
     this.config.projects.push({ name: projectName });
     this.saveConfig();
     
     return { status: "ok", message, project: projectName };
-  }
-}
-
-class Project{
-  constructor(name, projectDir){
-    this.projectDir = projectDir;
-    this.name = name;
-    this.papers = [];
-
-    // cria o json do projeto se não existir
-    const projectPath = path.join(projectDir, "project.json"); 
-    if (!fs.existsSync(projectPath)) {
-      this.project = { papers: [] };
-      fs.writeFileSync(projectPath, JSON.stringify(this.project, null, 2), 'utf8');
-      console.log(`🗂️ Projeto criado: ${projectPath}`);
-    } else {
-      try {
-        const raw = fs.readFileSync(projectPath, 'utf8');
-        this.project = JSON.parse(raw);
-      } catch (err) {
-        this.project = { papers: [] };
-        console.warn(`⚠️ Falha ao ler project.json, recriando: ${err.message}`);
-        fs.writeFileSync(projectPath, JSON.stringify(this.project, null, 2), 'utf8');
-      }
-    }
   }
 }
 

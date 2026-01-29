@@ -3,6 +3,7 @@ class WebsocketManager {
   constructor() {
     this.socket = null;
     this._closedFinalized = false;
+    this.onOpenListeners = [];
     this.tryAutoConnect();
     this.autoConnectionTime = 100;
   }
@@ -54,20 +55,44 @@ class WebsocketManager {
     this.appendLog("Conectando em " + fullUrl);
     this._closedFinalized = false;
 
+    // Supress specific global error messages that bubble from WebSocket creation
+    const suppressHandler = (ev) => {
+      try {
+        const msg = ev && (ev.message || (ev.error && ev.error.message)) || '';
+        if (typeof msg === 'string' && msg.includes('WebSocket connection to') && msg.includes(fullUrl)) {
+          ev.stopImmediatePropagation && ev.stopImmediatePropagation();
+          ev.preventDefault && ev.preventDefault();
+        }
+      } catch (err) {}
+    };
+
     try {
+      globalThis.addEventListener('error', suppressHandler, true);
       this.socket = new WebSocket(fullUrl);
     } catch (e) {
       this.setStatus("Erro");
       this.appendLog("Erro ao criar WebSocket: " + (e?.message || e));
       this.socket = null;
       this._closedFinalized = true;
+      try { globalThis.removeEventListener('error', suppressHandler, true); } catch (er) {}
       return;
+    } finally {
+      try { globalThis.removeEventListener('error', suppressHandler, true); } catch (er) {}
     }
 
     this.socket.onopen = () => {
       this.setStatus("Conectado");
       this.appendLog("✅ Conectado");
       this.autoConnectionTime = 100;
+      
+      // Trigger all registered open listeners
+      this.onOpenListeners.forEach(callback => {
+        try {
+          callback();
+        } catch (e) {
+          console.error("Error in onOpen listener:", e);
+        }
+      });
     };
 
     this.socket.onmessage = (e) => {
@@ -94,6 +119,13 @@ class WebsocketManager {
       return true;
     }
     return false;
+  }
+
+  // Register a callback to be called when WebSocket opens/reconnects
+  addOnOpenListener(callback) {
+    if (typeof callback === 'function') {
+      this.onOpenListeners.push(callback);
+    }
   }
 
   tryAutoConnect() {
