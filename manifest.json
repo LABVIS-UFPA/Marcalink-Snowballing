@@ -1,13 +1,18 @@
 {
   "manifest_version": 3,
-  "name": "Highlight Links",
+  "name": "Marcalink Snowballing",
   "version": "1.0",
-  "description": "Marca links com outra cor ao clicar com o botão direito.",
-  "permissions": ["contextMenus", "scripting", "storage", "unlimitedStorage"],
+  "description": "Marca links no Google Scholar e gerencia um projeto de snowballing com dashboard e exportação.",
+  "permissions": ["contextMenus", "scripting", "storage", "unlimitedStorage", "downloads", "alarms"],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
-  "options_page": "options.html",
+  "action": {
+    "default_title": "ICipó",
+    "default_popup": "ui/popup.html"
+  },
+  "options_page": "ui/options.html",
   "host_permissions": ["<all_urls>"],
   "content_scripts": [
     {

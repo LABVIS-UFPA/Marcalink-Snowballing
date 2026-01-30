@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Configurações • Marcalink Snowballing</title>
+    <link rel="stylesheet" href="options.css" />
+    <script defer type="module" src="options.js"></script>
+  </head>
+  <body>
+    <div class="layout">
+      <header class="topbar">
+        <div class="brand">
+          <div class="logo">SVAT</div>
+          <div class="brandText">
+            <div class="brandTitle">Configurações</div>
+            <div class="brandSub">Marcalink • Snowballing manual no Google Scholar</div>
+          </div>
+        </div>
+
+        <div class="topbarActions">
+          <label class="toggle">
+            <input type="checkbox" id="checkOnOff" />
+            <span>Ativar extensão</span>
+          </label>
+        </div>
+      </header>
+
+      <div class="main">
+        <aside class="sidenav" aria-label="Navegação das configurações">
+          <button class="sideItem active" type="button" data-target="panel-categories">
+            <span class="icon" aria-hidden="true">🎨</span>
+            <span>Categorias</span>
+          </button>
+
+          <button class="sideItem" type="button" data-target="panel-links">
+            <span class="icon" aria-hidden="true">📑</span>
+            <span>Documentos</span>
+          </button>
+
+          <button class="sideItem" type="button" data-target="panel-backup">
+            <span class="icon" aria-hidden="true">💾</span>
+            <span>Backup</span>
+          </button>
+
+          <!-- SERVER -->
+          <button class="sideItem" type="button" data-target="panel-server">
+            <span class="icon" aria-hidden="true">🔌</span>
+            <span>Server</span>
+          </button>
+
+          <div class="sideSpacer"></div>
+        </aside>
+
+        <main class="workarea">
+          <!-- CATEGORIAS -->
+          <section class="panel active" id="panel-categories">
+            <div class="panelHeader">
+              <h2>Categorias</h2>
+              <p>Crie cores para marcar artigos no Scholar. As categorias padrão (Seed/Backward/Forward…) ajudam no snowballing.</p>
+            </div>
+
+            <div class="card">
+              <div class="formRow">
+                <div class="field">
+                  <label for="categoryName">Nome</label>
+                  <input type="text" id="categoryName" placeholder="Ex.: Seed" />
+                </div>
+
+                <div class="field fieldColor">
+                  <label for="categoryColor">Cor</label>
+                  <input type="color" id="categoryColor" />
+                </div>
+
+                <div class="field fieldActions">
+                  <label>&nbsp;</label>
+                  <div class="btnRow">
+                    <button id="addCategory" class="btn primary">Adicionar</button>
+                    <button id="seedDefaultCategories" class="btn">Categorias padrão</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="listHead">
+                <h3>Lista de categorias</h3>
+                <span class="muted">Clique em <b>Excluir</b> para remover uma categoria.</span>
+              </div>
+              <ul id="categoryList" class="list"></ul>
+            </div>
+          </section>
+
+          <!-- LINKS -->
+          <section class="panel" id="panel-links">
+            <div class="panelHeader">
+              <h2>Links marcados</h2>
+              <p>Gerencie os links que foram destacados no Scholar (e os registros do dashboard).</p>
+            </div>
+
+            <div class="card">
+              <div class="formRow" style="align-items:flex-end">
+                <div class="field" style="flex:1">
+                  <label for="highlightSearch">Buscar</label>
+                  <input type="text" id="highlightSearch" placeholder="Buscar por título ou URL…" />
+                </div>
+
+                <div class="field fieldActions">
+                  <label>&nbsp;</label>
+                  <button id="removeLinks" class="btn danger" style="display:none">Resetar todos</button>
+                </div>
+              </div>
+
+              <div class="listHead">
+                <h3>Lista de links</h3>
+                <span class="muted">Use <b>Excluir</b> para remover um link individual.</span>
+              </div>
+              <ul id="highlightedList" class="list"></ul>
+            </div>
+          </section>
+
+          <!-- BACKUP -->
+          <section class="panel" id="panel-backup">
+            <div class="panelHeader">
+              <h2>Backup do armazenamento</h2>
+              <p>Faça download de um backup (JSON) ou envie um arquivo para restaurar. Isso pode sobrescrever dados existentes.</p>
+            </div>
+
+            <div class="card">
+              <div class="formRow" style="align-items:flex-end">
+                <div class="field fieldActions">
+                  <label>&nbsp;</label>
+                  <button id="downloadStorage" class="btn">Download</button>
+                </div>
+
+                <div class="field" style="min-width:260px">
+                  <label for="uploadStorage">Upload</label>
+                  <input id="uploadStorage" type="file" accept=".json" />
+                </div>
+              </div>
+
+              <div class="note">
+                Dica: após alterar categorias, recarregue a aba do Google Scholar (F5) para ver as opções atualizadas no clique direito.
+              </div>
+            </div>
+          </section>
+
+          <!-- ✅ SERVER -->
+          <section class="panel" id="panel-server">
+            <div class="panelHeader">
+              <h2>Server (WebSocket)</h2>
+              <p>Conecte em um servidor WebSocket para testes. As mensagens recebidas serão salvas localmente em <code>server_messages</code>.</p>
+            </div>
+
+            <div class="card">
+              <div class="formRow" style="align-items:flex-end">
+                <div class="field" style="flex:1">
+                  <label for="serverUrl">URL</label>
+                  <input type="text" id="serverUrl" placeholder="ws://localhost" />
+                </div>
+
+                <div class="field" style="min-width:140px">
+                  <label for="serverPort">Port</label>
+                  <input type="number" id="serverPort" placeholder="8080" />
+                </div>
+
+                <div class="field fieldActions">
+                  <label>&nbsp;</label>
+                  <div class="btnRow">
+                    <button id="connectBtn" class="btn primary">Conectar</button>
+                    <button id="sendPingBtn" class="btn">Enviar Ping</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="note" style="display:flex;gap:8px;align-items:center;justify-content:space-between">
+                <div>Status: <b id="serverStatus">Desconectado</b></div>
+                <div class="muted" style="font-size:12px">
+                  Guarda as últimas 500 mensagens.
+                </div>
+              </div>
+
+              <div class="listHead">
+                <h3>Log</h3>
+                <div class="muted" style="font-size:12px">
+                  <button id="clearServerLog" class="btn small">Limpar log</button>
+                </div>
+              </div>
+
+              <pre id="serverLog" class="serverLog"></pre>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

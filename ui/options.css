@@ -1,0 +1,383 @@
+:root{
+  --bg: #bfbfbf;
+  --topbar: #606060;
+  --sidebar: #a8a8a8;
+  --panel: #4f4f4f;
+  --textDark: #1b1b1b;
+  --text: #eaf0ff;
+  --muted: rgba(234,240,255,0.70);
+  --border: rgba(234,240,255,0.2);
+  --shadow: 0 12px 30px rgba(0,0,0,0.35);
+  --radius: 10px;
+  --btn: #6d6d6d;
+  --btnHover: #9a9a9a;
+  --danger: #ff6b6b;
+}
+
+*{box-sizing:border-box}
+html,body{
+  height:100%;
+  margin: 0;
+  overflow: hidden;
+}
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial;
+  background:
+    radial-gradient(1200px 600px at 15% 10%, rgba(110,168,255,0.25), transparent 55%),
+    radial-gradient(900px 500px at 85% 20%, rgba(170,110,255,0.18), transparent 60%),
+    radial-gradient(1100px 700px at 50% 100%, rgba(40,255,200,0.10), transparent 60%),
+    var(--bg);
+  color: var(--text);
+}
+
+/* layout base */
+.layout{
+  min-height:100%; 
+  display:flex;
+  flex-direction:column;
+  height: 100%;
+}
+.topbar{
+  min-height:64px;
+  background: var(--topbar);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding: 0 16px;
+  box-shadow: var(--shadow);
+}
+.brand{display:flex; align-items:center; gap:12px; min-width:240px}
+.logo{
+  width:42px;height:42px;border-radius:14px;
+  display:grid;place-items:center;
+  font-weight:900;
+  background: linear-gradient(135deg, rgba(110,168,255,0.9), rgba(170,110,255,0.9));
+  box-shadow: 0 12px 30px rgba(110,168,255,0.18);
+
+}
+.brandTitle{font-weight:800; font-size:14px; line-height:1}
+.brandSub{font-size:12px;color:var(--muted);margin-top:2px}
+
+.topbarActions{display:flex; align-items:center; gap:12px}
+.toggle{
+  display:flex; align-items:center; gap:10px;
+  font-size:13px;
+  user-select:none;
+}
+.toggle input{transform: scale(1.2)}
+
+.main{
+  flex:1;
+  display:flex;
+  gap: 14px;
+  padding: 12px;
+  overflow: hidden; /* Impede que o conteúdo interno estique a página */
+  height: 100%;
+}
+
+/* sidebar */
+.sidenav{
+  width:240px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.06));
+  border:1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  box-shadow: var(--shadow);
+}
+.sideItem{
+  all:unset;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding: 10px 10px;
+  background: rgba(255,255,255,0.10);
+  color: var(--textDark);
+  font-weight:700;
+  border-radius: 6px;
+}
+.sideItem:hover{background: rgba(255,255,255,0.18)}
+.sideItem.active{
+  outline: 2px solid var(--border);
+  background: rgba(255,255,255,0.4);
+}
+
+.icon{
+  width:28px;
+  height:28px;
+  display:grid;
+  place-items:center;
+  border-radius:6px;
+  font-size:16px;
+  background: rgba(255,255,255,0.06);
+}
+
+.sideSpacer{flex:1}
+
+.sideLink{
+  display:block;
+  text-decoration:none;
+  color: var(--textDark);
+  font-weight:700;
+  padding: 10px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.14);
+}
+.sideLink:hover{background: rgba(255,255,255,0.22)}
+
+/* workarea */
+.workarea{
+  flex:1;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 16px;
+  box-shadow: var(--shadow);
+  /* min-height: 520px; */
+  border-radius: var(--radius);
+
+  display: flex;
+  flex-direction: column;
+  height: 100%;       /* Ocupa toda a altura do .main */
+  min-height: 0;      /* IMPORTANTE: Remove o '520px' que causava o bug do scroll duplo */
+  overflow: hidden;   /* Garante que nada vaze */
+  box-sizing: border-box; /* Garante que o padding não estoure a altura */
+
+
+}
+
+.panel{display:none}
+.panel.active{
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.panelHeader{
+  margin-bottom: 12px;
+}
+.panelHeader h2{
+  margin:0 0 6px 0;
+  font-size: 18px;
+}
+.panelHeader p{
+  margin:0;
+  color: var(--muted);
+  font-size: 13px;
+  max-width: 900px;
+}
+
+/* cards inside panel */
+.card{
+  background: rgba(0,0,0,0.12);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--radius);
+  padding: 14px;
+
+  flex: 1;                /* Ocupa todo o espaço vertical que sobrar abaixo do header */
+  display: flex;          /* Vira flex para controlar os filhos (inputs, lista) */
+  flex-direction: column;
+  min-height: 0;          /* Crucial: permite que o card encolha se a tela for pequena */
+  overflow: hidden;       /* Impede vazamento visual */
+  max-height: none;       /* Remove seu fix manual de 512px */
+}
+.formRow{
+  display:flex;
+  gap:12px;
+  flex-wrap:wrap;
+  align-items:stretch;
+}
+.field{display:flex; flex-direction:column; gap:6px; min-width:220px}
+.field label{font-size:12px; color: var(--muted)}
+.field input[type="text"]{
+  height:38px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.10);
+  color: var(--text);
+  outline:none;
+}
+.field input[type="text"]::placeholder{color: rgba(255,255,255,0.55)}
+.field input[type="text"]:focus{
+  border-color: var(--border);
+  box-shadow: 0 0 0 3px rgba(138,83,255,0.25);
+}
+
+.fieldColor{min-width:160px}
+.field input[type="color"]{
+  
+  width:100%;
+  
+  height:38px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background-color: transparent;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+.field input[type="color"]::-webkit-color-swatch {
+  border-radius: 8px;
+  padding: 0px;
+  border: none;
+}
+.field input[type="color"]::-moz-color-swatch {
+  border-radius: 5px;
+  border: none;
+}
+
+.fieldActions{min-width:280px}
+.btnRow{display:flex; gap:10px; flex-wrap:wrap}
+
+.btn{
+  height:38px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--btn);
+  color: var(--text);
+  font-weight:800;
+  cursor:pointer;
+}
+.btn:hover{background: var(--btnHover);}
+.btn.primary{background: var(--border); color:#101010}
+.btn.primary:hover{filter: brightness(1.04)}
+.btn.danger{background: var(--danger); color:#101010; font-weight:900}
+.btn.danger:hover{filter: brightness(1.04)}
+
+.listHead{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  gap:12px;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,0.14);
+}
+.listHead h3{margin:0; font-size:14px}
+.muted{color: var(--muted); font-size:12px}
+.list, .serverLog{
+  list-style:none;
+  padding:0;
+  margin:10px 0 0 0;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+
+  flex: 1;                /* Ocupa o espaço restante dentro do card */
+  overflow-y: auto;       /* Scroll apenas aqui */
+  min-height: 0;          /* Fix para Firefox/Chrome flex items */
+
+}
+.list li{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  padding: 10px 10px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  margin-right: 7px;
+}
+.list .left{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-width: 0;
+}
+.pill{
+  width:14px;
+  height:14px;
+  border-radius: 4px;
+  border: 1px solid rgba(0,0,0,0.25);
+}
+.list .title{
+  font-weight:800;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width: 680px;
+}
+.list .sub{
+  font-size:12px;
+  color: var(--muted);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width: 680px;
+}
+.list .right{display:flex; gap:8px; flex-wrap:wrap}
+.note{
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.18);
+  border: 1px dashed rgba(255,255,255,0.18);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Responsivo */
+@media (max-width: 920px){
+  .main{flex-direction:column}
+  .sidenav{width:auto; flex-direction:row; flex-wrap:wrap}
+  .workarea{min-height:auto}
+}
+
+/* Compat com options.js (itens criados via JS) */
+.list li button{
+  height:32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.18);
+  color: var(--text);
+  font-weight:900;
+  cursor:pointer;
+}
+.list li button:hover{filter: brightness(1.08)}
+.list li button.dark{
+  background: rgba(255,255,255,0.18);
+  color: #101010;
+}
+
+/* ✅ NOVO: log do Server */
+.serverLog{
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(0,0,0,0.35);
+  color: var(--text);
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+
+
+/* Estilização da barra de rolagem para combinar com o tema Dark */
+.list::-webkit-scrollbar,
+.serverLog::-webkit-scrollbar {
+  width: 8px;
+}
+.list::-webkit-scrollbar-track,
+.serverLog::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.1);
+  border-radius: 4px;
+}
+.list::-webkit-scrollbar-thumb,
+.serverLog::-webkit-scrollbar-thumb {
+  background: var(--btn);
+  border-radius: 4px;
+}
+.list::-webkit-scrollbar-thumb:hover,
+.serverLog::-webkit-scrollbar-thumb:hover {
+  background: var(--btnHover);
+}

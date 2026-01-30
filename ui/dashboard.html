@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dashboard • Marcalink Snowballing</title>
+    <link rel="stylesheet" href="dashboard.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="logo">SVAT</div>
+          <div>
+            <div class="brandTitle">Snowballing</div>
+            <div class="brandSub" id="brandSub">—</div>
+          </div>
+        </div>
+
+        <nav class="nav">
+          <button class="navBtn active" data-view="overview">📌 Visão geral</button>
+          <button class="navBtn" data-view="papers">📚 Artigos</button>
+          <button class="navBtn" data-view="iterations">🔁 Iterações</button>
+          <button class="navBtn" data-view="criteria">✅ Critérios</button>
+          <button class="navBtn" data-view="citations">🔗 Conexões</button>
+          <button class="navBtn" data-view="graph">🕸️ Grafo</button>
+          <button class="navBtn" data-view="insights">✨ Insights</button>
+        </nav>
+
+        <div class="sideFooter">
+          <button id="btnOptions" class="ghost">⚙️ Configurações</button>
+          <button id="btnClear" class="ghost danger">🧹 Limpar dados</button>
+          <div class="hint">Dica: marque artigos no Scholar com botão direito → “Marcar link” → categoria.</div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div class="topLeft">
+            <h1 id="projectTitle">Projeto</h1>
+            <div class="meta" id="projectMeta">—</div>
+          </div>
+          <div class="topActions">
+            <button id="btnImport" class="btn">⬆️ Importar JSON</button>
+            <button id="btnExportJson" class="btn">⬇️ Exportar JSON</button>
+            <button id="btnExportCsv" class="btn">⬇️ CSV</button>
+            <button id="btnExportBib" class="btn">⬇️ BibTeX</button>
+            <input id="fileImport" type="file" accept="application/json" style="display:none" />
+          </div>
+        </header>
+
+        <!-- OVERVIEW -->
+        <section class="view" id="view_overview">
+          <div class="kpiGrid">
+            <div class="kpi"><div class="kpiLabel">Total</div><div class="kpiVal" id="kpi_total">0</div></div>
+            <div class="kpi"><div class="kpiLabel">Incluídos</div><div class="kpiVal" id="kpi_included">0</div></div>
+            <div class="kpi"><div class="kpiLabel">Excluídos</div><div class="kpiVal" id="kpi_excluded">0</div></div>
+            <div class="kpi"><div class="kpiLabel">Pendentes</div><div class="kpiVal" id="kpi_pending">0</div></div>
+            <div class="kpi"><div class="kpiLabel">Duplicados</div><div class="kpiVal" id="kpi_duplicate">0</div></div>
+            <div class="kpi"><div class="kpiLabel">Seeds</div><div class="kpiVal" id="kpi_seed">0</div></div>
+          </div>
+
+          <div class="grid2">
+            <div class="card">
+              <div class="cardTitle">Status dos artigos</div>
+              <div id="statusBars" class="bars"></div>
+            </div>
+            <div class="card">
+              <div class="cardTitle">Publicações por ano</div>
+              <svg id="timeline" width="100%" height="180" role="img" aria-label="Histograma por ano"></svg>
+            </div>
+          </div>
+
+          <div class="grid2">
+            <div class="card">
+              <div class="cardTitle">Fluxo (PRISMA adaptado)</div>
+              <div id="flow" class="flow"></div>
+            </div>
+            <div class="card">
+              <div class="cardTitle">Pendentes recentes</div>
+              <div class="tableWrap">
+                <table class="table" id="pendingTable">
+                  <thead><tr><th>Título</th><th>Origem</th><th>Iter.</th><th>Ações</th></tr></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- PAPERS -->
+        <section class="view hidden" id="view_papers">
+          <div class="toolbar">
+            <input id="search" class="input" placeholder="Buscar por título, autor, tag…" />
+            <select id="f_status" class="select">
+              <option value="all">Status: todos</option>
+              <option value="pending">Pendentes</option>
+              <option value="included">Incluídos</option>
+              <option value="excluded">Excluídos</option>
+              <option value="duplicate">Duplicados</option>
+            </select>
+            <select id="f_origin" class="select">
+              <option value="all">Origem: todas</option>
+              <option value="seed">Seed</option>
+              <option value="backward">Backward</option>
+              <option value="forward">Forward</option>
+              <option value="unknown">Desconhecida</option>
+            </select>
+            <select id="f_iteration" class="select">
+              <option value="all">Iteração: todas</option>
+            </select>
+            <button id="btnBulkInclude" class="btn">Incluir</button>
+            <button id="btnBulkExclude" class="btn">Excluir</button>
+            <button id="btnBulkPending" class="btn">Pendente</button>
+            <button id="btnBulkDuplicate" class="btn">Duplicado</button>
+          </div>
+
+          <div class="tableWrap">
+            <table class="table" id="papersTable">
+              <thead>
+                <tr>
+                  <th style="width:36px"><input type="checkbox" id="checkAll" /></th>
+                  <th>Título</th>
+                  <th style="width:72px">Ano</th>
+                  <th style="width:110px">Origem</th>
+                  <th style="width:90px">Iter.</th>
+                  <th style="width:110px">Status</th>
+                  <th style="width:140px">Critério</th>
+                  <th style="width:160px">Tags</th>
+                  <th style="width:90px">Link</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ITERATIONS -->
+        <section class="view hidden" id="view_iterations">
+          <div class="card">
+            <div class="cardTitle">Iterações</div>
+            <div class="row">
+              <input id="newIterId" class="input" placeholder="Ex.: I2" style="max-width:140px" />
+              <select id="newIterMode" class="select" style="max-width:220px">
+                <option value="seed">Seed</option>
+                <option value="backward">Backward</option>
+                <option value="forward">Forward</option>
+                <option value="both">Backward + Forward</option>
+              </select>
+              <button id="btnAddIteration" class="btn">Adicionar</button>
+              <button id="btnSetCurrentIteration" class="btn">Definir como atual</button>
+            </div>
+            <div class="tableWrap">
+              <table class="table" id="iterationsTable">
+                <thead><tr><th>ID</th><th>Tipo</th><th>Modo</th><th>Criada em</th><th>Ações</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- CRITERIA -->
+        <section class="view hidden" id="view_criteria">
+          <div class="grid2">
+            <div class="card">
+              <div class="cardTitle">Cadastrar critérios</div>
+              <div class="row">
+                <input id="critId" class="input" placeholder="Ex.: C1" style="max-width:120px" />
+                <input id="critDesc" class="input" placeholder="Descrição do critério" />
+                <button id="btnAddCriterion" class="btn">Salvar</button>
+              </div>
+              <div class="tableWrap">
+                <table class="table" id="criteriaTable">
+                  <thead><tr><th>ID</th><th>Descrição</th><th>Qtd.</th><th>Ações</th></tr></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card">
+              <div class="cardTitle">Excluídos (auditável)</div>
+              <div class="tableWrap">
+                <table class="table" id="excludedTable">
+                  <thead><tr><th>Título</th><th>Critério</th><th>Iter.</th><th>Link</th></tr></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- CITATIONS -->
+        <section class="view hidden" id="view_citations">
+          <div class="card">
+            <div class="cardTitle">Criar conexão (manual)</div>
+            <div class="row">
+              <select id="c_from" class="select"></select>
+              <select id="c_type" class="select" style="max-width:200px">
+                <option value="backward">Backward (referência)</option>
+                <option value="forward">Forward (citação)</option>
+              </select>
+              <select id="c_to" class="select"></select>
+              <button id="btnAddCitation" class="btn">Adicionar</button>
+            </div>
+            <div class="tableWrap">
+              <table class="table" id="citationsTable">
+                <thead><tr><th>De</th><th>Tipo</th><th>Para</th><th>Ações</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- GRAPH -->
+        <section class="view hidden" id="view_graph">
+          <div class="grid2">
+            <div class="card">
+              <div class="cardTitle">Grafo de citações (simples, offline)</div>
+              <div class="row">
+                <select id="g_filterIteration" class="select" style="max-width:220px"></select>
+                <select id="g_filterStatus" class="select" style="max-width:220px">
+                  <option value="all">Status: todos</option>
+                  <option value="pending">Pendentes</option>
+                  <option value="included">Incluídos</option>
+                  <option value="excluded">Excluídos</option>
+                  <option value="duplicate">Duplicados</option>
+                </select>
+                <button id="btnGraphReset" class="btn">Recalcular layout</button>
+              </div>
+              <svg id="graph" width="100%" height="520" role="img" aria-label="Grafo"></svg>
+              <div class="hint">Dica: clique em um nó para abrir o link. O grafo usa as conexões criadas na aba “Conexões”.</div>
+            </div>
+            <div class="card">
+              <div class="cardTitle">Detalhes</div>
+              <div id="graphDetails" class="details">Selecione um nó…</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- INSIGHTS -->
+        <section class="view hidden" id="view_insights">
+          <div class="grid2">
+            <div class="card">
+              <div class="cardTitle">Resumo automático da revisão</div>
+              <div class="row">
+                <button id="btnGenerateSummary" class="btn">Gerar resumo</button>
+                <button id="btnCopySummary" class="btn">Copiar</button>
+              </div>
+              <textarea id="summaryText" class="input" style="width:100%;min-height:220px;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace" placeholder="Clique em 'Gerar resumo'..."></textarea>
+              <div class="hint" style="margin-top:8px">Use este texto como base do relatório/TCC (ajuste conforme necessário).</div>
+            </div>
+            <div class="card">
+              <div class="cardTitle">Saturação (alerta)</div>
+              <div id="saturationBox" class="hint">—</div>
+              <div class="cardTitle" style="margin-top:16px">Possíveis duplicatas (sugestão)</div>
+              <div class="row">
+                <button id="btnFindDuplicates" class="btn">Detectar duplicatas</button>
+                <select id="dupThreshold" class="select" style="max-width:240px">
+                  <option value="0.9">Limite: 0.90 (mais rígido)</option>
+                  <option value="0.85" selected>Limite: 0.85 (recomendado)</option>
+                  <option value="0.8">Limite: 0.80 (mais sensível)</option>
+                </select>
+              </div>
+              <div class="tableWrap">
+                <table class="table" id="dupsTable">
+                  <thead><tr><th>Par sugerido</th><th>Similaridade</th><th>Ações</th></tr></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:16px">
+            <div class="cardTitle">Histórico (audit trail)</div>
+            <div class="hint">Clique no título de um artigo em <b>Artigos</b> para ver o histórico aqui.</div>
+            <div class="tableWrap" style="margin-top:10px">
+              <table class="table" id="historyTable">
+                <thead><tr><th>Quando</th><th>Ação</th><th>Detalhes</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- HISTORY MODAL (fallback) -->
+        <div id="historyModal" class="modal hidden" role="dialog" aria-modal="true">
+          <div class="modalCard">
+            <div class="row" style="justify-content:space-between;align-items:center">
+              <div style="font-weight:900" id="historyModalTitle">Histórico</div>
+              <button id="btnCloseHistory" class="btn">Fechar</button>
+            </div>
+            <div class="tableWrap" style="margin-top:10px">
+              <table class="table" id="historyModalTable">
+                <thead><tr><th>Quando</th><th>Ação</th><th>Detalhes</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- (removed duplicate INSIGHTS + modal) -->
+      </main>
+    </div>
+
+    <script type="module" src="dashboard.js"></script>
+  </body>
+</html>

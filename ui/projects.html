@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Meus projetos • Marcalink Snowballing</title>
+    <link rel="stylesheet" href="options.css" />
+    <style>
+      .panelHeader{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+      .panelHeader .headerActions{display:flex;align-items:flex-end;gap:8px;height: 100%;}
+      .btn.createGreen{background:#2ea44f;color:white;border:none;padding:8px 12px;border-radius:6px;min-width: 120px;}
+      .btn.createGreen:hover{filter:brightness(0.95)}
+
+      .sidenav{height:100%;width:0px;transform:scale(0 1);transition: width .7s ease, display .7s ease allow-discrete;overflow:auto;display:none;}
+      .sidenav.open{width: 380px;display: flex;}
+
+      @starting-style {
+        .sidenav.open {
+          width: 0;
+        }
+      }
+
+      .sidenav .formRow{display:block;margin-bottom:12px}
+      .sidenav label{display:block;font-size:12px;color:#333;margin-bottom:6px}
+      .sidenav input[type=text], .sidenav textarea{width:100%;padding:8px;border:1px solid #ddd;border-radius:6px}
+      .sidenav .formActions{text-align:right;margin-top:12px}
+      .sidenav h2{color: #303030;margin-bottom: 0;}
+      .sidenav .btn.primary{ color: #101010;border: 1px solid var(--btn);}
+
+      /* Estilização da barra de rolagem para combinar com o tema Dark */
+      .sidenav::-webkit-scrollbar {
+        width: 8px;
+      }
+      .sidenav::-webkit-scrollbar-track {
+        background: rgb(255 255 255 / 14%);
+        border-radius: 4px;
+        margin: 3px 3px 3px 0px;
+      }
+      .sidenav::-webkit-scrollbar-thumb {
+        border-radius: 4px;
+        background: #00000069;
+      }
+      .sidenav::-webkit-scrollbar-thumb:hover {
+        background: var(--btnHover);
+      }
+
+    </style>
+    <script defer type="module" src="projects.js"></script>
+  </head>
+  <body>
+    <div class="layout">
+      <header class="topbar">
+        <div class="brand">
+          <div class="logo">SVAT</div>
+          <div class="brandText">
+            <div class="brandTitle">Meus projetos</div>
+            <div class="brandSub">Gerencie projetos — mesma aparência das Configurações</div>
+          </div>
+        </div>
+
+        <div class="topbarActions">
+          <a class="sideLink" href="options.html">configurações</a>
+        </div>
+      </header>
+
+      <div class="main">
+        <main class="workarea" style="margin-left:0;">
+          <section class="panel active" id="panel-projects-dedicated" style="height:100%">
+            <div class="panelHeader">
+              <div>
+                <h2>Meus projetos</h2>
+                <p>Crie, renomeie, remova projetos e marque qual é o atual. Os botões estão prontos para serem conectados à lógica do storage.</p>
+              </div>
+              <div class="headerActions">
+                
+                <div style="display:flex;align-items:center">
+                  <button id="openCreateBtn" class="btn createGreen">Novo projeto</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+
+              <div class="field" style="min-width:220px">
+                  <label for="newProjectName">Filtrar projetos</label>
+                  <input type="text" id="newProjectName" placeholder="Filtrar por nome ou id" />
+                </div>
+
+              <div style="height:6px"></div>
+
+              <div class="listHead">
+                <h3>Projetos</h3>
+                <span class="muted">Ações: <b>Remover</b>, <b>Renomear</b>, <b>Marcar atual</b>.</span>
+              </div>
+
+              <ul id="projectList" class="list"></ul>
+
+              <div class="note" style="margin-top:12px">Observação: esta é uma interface apenas frontend — os callbacks disparam mensagens para serem conectadas futuramente.</div>
+            </div>
+          </section>
+          
+        </main>
+        <aside class="sidenav" id="createSidenav" aria-hidden="true">
+            <h2>Novo projeto</h2>
+            <div class="note">Preencha os campos obrigatórios marcados com *</div>
+
+            <div class="formRow">
+              <label for="projectName">Nome do projeto *</label>
+              <input type="text" id="projectName" placeholder="Ex.: Revisão Sistemática" />
+            </div>
+
+            <div class="formRow">
+              <label for="projectDescription">Descrição *</label>
+              <textarea id="projectDescription" rows="3" placeholder="Breve descrição"></textarea>
+            </div>
+
+            <div class="formRow">
+              <label for="projectResearchers">Pesquisadores * (separados por vírgula)</label>
+              <input type="text" id="projectResearchers" placeholder="Nome1, Nome2" />
+            </div>
+
+            <div class="formRow">
+              <label for="projectObjective">Objetivo</label>
+              <textarea id="projectObjective" rows="2" placeholder="Objetivo do projeto"></textarea>
+            </div>
+
+            <div class="formRow">
+              <label for="projectCriteria">Critérios de inclusão/ exclusão</label>
+              <textarea id="projectCriteria" rows="3" placeholder="Critérios"></textarea>
+            </div>
+
+            <div class="formActions">
+              <button id="cancelCreateBtn" class="btn">Cancelar</button>
+              <button id="createProjectConfirmBtn" class="btn primary">Criar projeto</button>
+            </div>
+          </aside>
+      </div>
+    </div>
+  </body>
+</html>
