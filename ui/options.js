@@ -1,4 +1,4 @@
-import { storage } from './infrastructure/storage.mjs';
+import { storage } from '../infrastructure/storage.mjs';
 
 document.addEventListener("DOMContentLoaded", () => {
   const categoryNameInput = document.getElementById("categoryName");

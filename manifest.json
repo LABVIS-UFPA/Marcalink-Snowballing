@@ -9,10 +9,10 @@
     "type": "module"
   },
   "action": {
-    "default_title": "Marcalink Snowballing",
-    "default_popup": "popup.html"
+    "default_title": "ICipó",
+    "default_popup": "ui/popup.html"
   },
-  "options_page": "options.html",
+  "options_page": "ui/options.html",
   "host_permissions": ["<all_urls>"],
   "content_scripts": [
     {

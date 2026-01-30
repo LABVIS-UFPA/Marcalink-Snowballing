@@ -1,4 +1,4 @@
-import {fmtDate, normalizeStr, jaccard} from './core/utils.mjs';
+import {fmtDate, normalizeStr, jaccard} from '../core/utils.mjs';
 
 let state = null;
 

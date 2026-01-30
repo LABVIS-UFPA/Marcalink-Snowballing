@@ -17,7 +17,7 @@ async function refresh() {
 }
 
 document.getElementById("openDashboard").addEventListener("click", () => {
-  chrome.tabs.create({ url: chrome.runtime.getURL("dashboard.html") });
+  chrome.tabs.create({ url: chrome.runtime.getURL("ui/dashboard.html") });
 });
 
 document.getElementById("openOptions").addEventListener("click", () => {
@@ -25,7 +25,7 @@ document.getElementById("openOptions").addEventListener("click", () => {
 });
 
 document.getElementById("openProjects").addEventListener("click", () => {
-  chrome.tabs.create({ url: chrome.runtime.getURL("projects.html") });
+  chrome.tabs.create({ url: chrome.runtime.getURL("ui/projects.html") });
 });
 
 // TODO: remover os botões de import e export do Popup.
