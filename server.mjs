@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { storage } from "./infrastructure/storage.mjs";
 import { Project } from "./core/entities.mjs";
+import console from "console";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -79,8 +80,9 @@ const messageHandler = {
   "open_project": async (payload) => {
     return verifyName(payload) || await storage.loadProject(payload.name);
   },
-  "list_project": async () => {
-    return { act: "list_project", payload: await storage.listProjects() };
+  "list_projects": async () => {
+    console.log("Listing projects via WebSocket");
+    return { act: "list_projects", payload: await storage.listProjects() };
   },
   "delete_project": async (payload) => {
     return verifyName(payload) || await storage.deleteProject(payload.name);

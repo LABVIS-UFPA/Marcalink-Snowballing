@@ -1,3 +1,5 @@
+import { storage } from '../infrastructure/storage.mjs';
+
 document.addEventListener('DOMContentLoaded', () => {
   const filterInput = document.getElementById('newProjectName');
   const openCreateBtn = document.getElementById('openCreateBtn');
@@ -56,18 +58,20 @@ document.addEventListener('DOMContentLoaded', () => {
       // update local
       p.name = newName;
       title.textContent = newName;
-      // callback placeholder
-      chrome.runtime?.sendMessage?.({ action: 'projects.rename', id: p.id, name: newName });
+      // persist
+      try { await storage.saveProject(p.id, p); } catch (e) { console.warn('saveProject failed', e); }
     });
 
     const btnSet = document.createElement('button');
     btnSet.textContent = p.isCurrent ? 'Atual' : 'Marcar atual';
     btnSet.classList.toggle('dark', !!p.isCurrent);
-    btnSet.addEventListener('click', () => {
+    btnSet.addEventListener('click', async () => {
       // update local state
-      projects.forEach((pr) => (pr.isCurrent = pr.id === p.id));
-      // callback placeholder
-      chrome.runtime?.sendMessage?.({ action: 'projects.setCurrent', id: p.id });
+      projects.forEach((pr) => { pr.isCurrent = pr.id === p.id; });
+      // persist all projects' current flag
+      try {
+        for (const pr of projects) await storage.saveProject(pr.id, pr);
+      } catch (e) { console.warn('failed to set current project', e); }
       // visual
       Array.from(projectList.querySelectorAll('li')).forEach((n) => n.querySelector('button.dark')?.classList.remove('dark'));
       btnSet.classList.add('dark');
@@ -76,11 +80,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const btnRemove = document.createElement('button');
     btnRemove.textContent = 'Remover';
-    btnRemove.addEventListener('click', () => {
+    btnRemove.addEventListener('click', async () => {
       if (!confirm(`Remover o projeto "${p.name}"?`)) return;
       // remove local
       projects = projects.filter((x) => x.id !== p.id);
-      chrome.runtime?.sendMessage?.({ action: 'projects.remove', id: p.id });
+      try { await storage.deleteProject(p.id); } catch (e) { console.warn('deleteProject failed', e); }
       li.remove();
       if (!projectList.children.length) placeholder();
     });
@@ -145,7 +149,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   createConfirmBtn.addEventListener('click', () => {
-    const name = (projectNameInput.value || '').trim();
+    (async () => {
+      const name = (projectNameInput.value || '').trim();
     const desc = (projectDescriptionInput.value || '').trim();
     const researchers = (projectResearchersInput.value || '').trim();
     if (!name) return alert('O nome do projeto é obrigatório.');
@@ -164,11 +169,17 @@ document.addEventListener('DOMContentLoaded', () => {
       criteria: (projectCriteriaInput.value || '').trim(),
       isCurrent: false,
     };
-
-    projects.push(p);
-    chrome.runtime?.sendMessage?.({ action: 'projects.create', project: p });
-    renderProjects(filterInput.value || '');
-    closeSidenav();
+    // persist and update UI
+    try {
+      await storage.saveProject(p.id, p);
+      projects.push(p);
+      renderProjects(filterInput.value || '');
+      closeSidenav();
+    } catch (e) {
+      console.warn('saveProject failed', e);
+      alert('Falha ao salvar o projeto. Veja console.');
+    }
+    })();
   });
 
   filterInput.addEventListener('input', () => renderProjects(filterInput.value || ''));
@@ -176,12 +187,35 @@ document.addEventListener('DOMContentLoaded', () => {
   // initial safety placeholder
   setTimeout(() => {
     if (!projects.length) placeholder();
-  }, 150);
+  }, 6000);
 
-  // Optionally, load from backend when integrated:
-  /* chrome.runtime?.sendMessage?.({ action: 'projects.list' }, (resp) => {
-    const items = (resp && resp.projects) ? resp.projects : [];
-    projects = items;
-    renderProjects();
-  }); */
+  // Load projects from storage
+  (async function loadFromStorage() {
+    try {
+      const res = await storage.listProjects();
+      console.log('Projects listed from storage:', res);
+      let names = [];
+      if (Array.isArray(res)) names = res;
+      else if (res && Array.isArray(res.data)) names = res.data;
+      else if (res && Array.isArray(res.projects)) names = res.projects;
+
+      // Normalize entries (could be objects or strings)
+      names = names.map(n => (typeof n === 'string' ? n : (n.name || n.id || ''))).filter(Boolean);
+
+      // const loaded = [];
+      // for (const nm of names) {
+      //   try {
+      //     const r = await storage.loadProject(nm);
+      //     const data = (r && r.data) ? r.data : (r && typeof r === 'object' ? r : null);
+      //     if (data) loaded.push(data);
+      //   } catch (e) { /* ignore per-project failures */ }
+      // }
+      
+      // console.log(`Loaded ${loaded.length} projects from storage.`);
+      projects = names.map(n => ({ id: n, name: n }));
+      renderProjects(filterInput.value || '');
+    } catch (e) {
+      console.warn('Failed to load projects from storage', e);
+    }
+  })();
 });

@@ -73,8 +73,12 @@ class NodeFsStrategy {
     try {
       const cfg = this.readJson('config.json') || { projects: [] };
       if (!Array.isArray(cfg.projects)) cfg.projects = [];
-      if (!cfg.projects.some(p => p.name === projectName)) {
-        cfg.projects.push({ name: projectName });
+      if (!cfg.projects.some(p => p.id === projectName)) {
+        cfg.projects.push({ 
+          id: projectName, 
+          name: projectData.name,
+          researchers: projectData.researchers
+        });
         this.writeJson('config.json', cfg);
       }
     } catch (e) {
@@ -124,16 +128,17 @@ class NodeFsStrategy {
     try {
       // Prefer config.json managed list
       const cfg = this.readJson('config.json');
-      if (cfg && Array.isArray(cfg.projects)) return { status: 'ok', data: cfg.projects.map(p => p.name) };
+      if (cfg && Array.isArray(cfg.projects)) return { status: 'ok', data: cfg.projects };
 
-      const entries = this.fs.readdirSync(this.baseDir, { withFileTypes: true });
-      const dirs = entries
-        .filter(e => e.isDirectory())
-        .map(e => e.name);
-      return { status: "ok", data: dirs };
+      // const entries = this.fs.readdirSync(this.baseDir, { withFileTypes: true });
+      // const dirs = entries
+      //   .filter(e => e.isDirectory())
+      //   .map(e => e.name);
+      // return { status: "ok", data: dirs };
     } catch (e) {
       return { status: "error", message: e.message };
     }
+    return { status: 'ok', data: [] };
   }
 
   // CRUD methods for Paper
@@ -230,22 +235,56 @@ class WebSocketStrategy {
     this.wsManager = ws;
 
     // Register for reconnection events to sync backup data
-      if (this.onOpen) {
-        this.onOpen(async () => {
-          await this.syncBackupData();
-        });
-      }
-      // Check if there's backup data on startup and sync if needed
-      await this.syncBackupData();
+    if (this.onOpen) {
+      this.onOpen(async () => {
+        await this.syncBackupData();
+      });
+    }
+    // Check if there's backup data on startup and sync if needed
+    await this.syncBackupData();
+  }
+
+  // NOVO MÉTODO: Aguarda a conexão estar pronta
+  async ensureConnection(timeoutMs = 5000) {
+    if (this.isActive()) return true;
+
+    return new Promise((resolve) => {
+      let isResolved = false;
+
+      // Timeout de segurança para não travar a aplicação eternamente
+      const timer = setTimeout(() => {
+        if (!isResolved) {
+          isResolved = true;
+          console.warn("Timeout aguardando WebSocket.");
+          resolve(false); 
+        }
+      }, timeoutMs);
+
+      // Usa o listener melhorado do wsManager
+      this.wsManager.addOnOpenListener(() => {
+        if (!isResolved) {
+          clearTimeout(timer);
+          isResolved = true;
+          resolve(true);
+        }
+      });
+    });
   }
 
   async send(act, payload) {
+    // 1. Aguarda a conexão ser estabelecida
+    console.log("WebSocketStrategy.send", act, payload);
+    const isConnected = await this.ensureConnection();
+    console.log("WebSocketStrategy.isConnected", isConnected);
+
     return new Promise((resolve) => {
       // In a real scenario, we'd use a request-response pattern
       // For now, send via wsManager
-      if (this.wsManager && this.wsManager.send) {
-        this.wsManager.send(JSON.stringify({ act, payload }));
-        resolve({ status: "ok" });
+      if (isConnected && this.wsManager && this.wsManager.send) {
+        this.wsManager.send({ act, payload }, (response) => {
+          console.log("WebSocketStrategy.receive", response);
+          resolve(response);
+        });
       } else {
         resolve({ status: "error", message: "WebSocket not connected" });
       }
@@ -269,6 +308,8 @@ class WebSocketStrategy {
   }
 
   async listProjects() {
+    console.log("Listing projects via WebSocket:");
+    console.log(this.wsManager.socket.readyState);
     return this.send('list_projects', {});
   }
 
