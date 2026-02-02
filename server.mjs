@@ -60,54 +60,52 @@ wss.on("connection", (ws) => {
   });
 });
 
-function verifyName(payload) {
-  if (!payload || !payload.name){
-    return { status: "error", message: "Missing project name. Please provide a name with variable 'name'." };
-  }else if(!/^[a-zA-Z0-9._-]+$/.test(payload.name)){
-    return { status: "error", message: "Invalid project name. Use only letters, numbers, dots, underscores, and hyphens." };
+function verifyProjectID(payload) {
+  if (!payload || !payload.projectID){
+    return { status: "error", message: "Missing project ID. Please provide an ID with variable 'projectID'." };
+  }else if(!/^[a-zA-Z0-9._-]+$/.test(payload.projectID)){
+    return { status: "error", message: "Invalid project ID. Use only letters, numbers, dots, underscores, and hyphens." };
   }else{
-    payload.name = payload.name.trim();
-    if (payload.name.length === 0){
-      return { status: "error", message: "Project name cannot be empty." };
+    payload.projectID = payload.projectID.trim();
+    if (payload.projectID.length === 0){
+      return { status: "error", message: "Project ID cannot be empty." };
     }
   }
 }
 
 const messageHandler = {
-  "new_project": async (payload) => {
-    return verifyName(payload) || await storage.saveProject(payload.name, { papers: [] });
-  },
   "open_project": async (payload) => {
-    return verifyName(payload) || await storage.loadProject(payload.name);
+    return verifyProjectID(payload) || await storage.loadProject(payload.projectID);
+  },
+  "save_project": async (payload) => {
+    return verifyProjectID(payload) || await storage.saveProject(payload.projectID, payload.data);
+  },
+  "load_project": async (payload) => {
+    return verifyProjectID(payload) || await storage.loadProject(payload.projectID);
   },
   "list_projects": async () => {
     console.log("Listing projects via WebSocket");
     return { act: "list_projects", payload: await storage.listProjects() };
   },
   "delete_project": async (payload) => {
-    return verifyName(payload) || await storage.deleteProject(payload.name);
+    return verifyProjectID(payload) || await storage.deleteProject(payload.projectID);
   },
   "archive_project": async (payload) => {
-    return verifyName(payload) || await storage.archiveProject(payload.name);
+    return verifyProjectID(payload) || await storage.archiveProject(payload.projectID);
   },
   "save_paper": async (payload) => {
-    return await storage.savePaper(payload.projectName, payload.paperId, payload.data);
+    return await storage.savePaper(payload.projectID, payload.paperId, payload.data);
   },
   "load_paper": async (payload) => {
-    return await storage.loadPaper(payload.projectName, payload.paperId);
+    return await storage.loadPaper(payload.projectID, payload.paperId);
   },
   "delete_paper": async (payload) => {
-    return await storage.deletePaper(payload.projectName, payload.paperId);
+    return await storage.deletePaper(payload.projectID, payload.paperId);
   },
   "list_papers": async (payload) => {
-    return await storage.listPapers(payload.projectName);
+    return await storage.listPapers(payload.projectID);
   },
-  "save_project": async (payload) => {
-    return await storage.saveProject(payload.projectName, payload.data);
-  },
-  "load_project": async (payload) => {
-    return await storage.loadProject(payload.projectName);
-  },
+ 
   "storage_get": async (payload) => {
     const result = await storage.get(payload.keys);
     return { status: "ok", data: result };
