@@ -888,60 +888,7 @@ function bindEvents() {
     // renderAll();
   });
 
-  $("#btnImport").addEventListener("click", () => $("#fileImport").click());
-  $("#fileImport").addEventListener("change", async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const text = await file.text();
-    const parsed = JSON.parse(text);
-    if (!parsed || typeof parsed !== "object" || !parsed.project || !Array.isArray(parsed.papers)) {
-      alert("JSON inválido: esperado objeto com project e papers.");
-      return;
-    }
-    state = {
-      project: parsed.project,
-      papers: parsed.papers || [],
-      iterations: parsed.iterations || [],
-      citations: parsed.citations || [],
-      criteria: parsed.criteria || {},
-    };
-    await persist();
-    renderAll();
-    alert("Importado com sucesso.");
-  });
-
-  $("#btnExportJson").addEventListener("click", async () => {
-    //TODO: remover a exportação JSON
-    // const filename = `snowballing_${(state.project.id || "project").replace(/[^a-zA-Z0-9_-]/g, "_")}.json`;
-    // svatDownload(filename, JSON.stringify(state, null, 2));
-  });
-  $("#btnExportCsv").addEventListener("click", async () => {
-    // if (!state.papers.length) return alert("Sem papers para exportar.");
-    // const rows = state.papers.map(p => ({
-    //   id: p.id,
-    //   title: p.title,
-    //   year: p.year,
-    //   origin: p.origin,
-    //   iterationId: p.iterationId,
-    //   status: p.status,
-    //   criteriaId: p.criteriaId,
-    //   tags: Array.isArray(p.tags) ? p.tags.join(";") : "",
-    //   url: p.url,
-    //   createdAt: p.createdAt,
-    //   updatedAt: p.updatedAt,
-    // }));
-    // const csv = svatToCsv(rows);
-    // const filename = `triagem_${(state.project.id || "project").replace(/[^a-zA-Z0-9_-]/g, "_")}.csv`;
-    // svatDownload(filename, csv, "text/csv");
-  });
-  $("#btnExportBib").addEventListener("click", async () => {
-    // const included = state.papers.filter(p => p.status === "included");
-    // if (!included.length) return alert("Sem artigos incluídos.");
-    // const bib = svatToBibtex(included);
-    // const filename = `included_${(state.project.id || "project").replace(/[^a-zA-Z0-9_-]/g, "_")}.bib`;
-    // svatDownload(filename, bib, "application/x-bibtex");
-  });
-
+  
   // Insights
   const btnSum = document.getElementById("btnGenerateSummary");
   if (btnSum) btnSum.addEventListener("click", () => {
