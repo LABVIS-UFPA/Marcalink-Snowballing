@@ -4,6 +4,18 @@ let state = null;
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+// Helper: download a file from an extension page (Blob + <a download>).
+function downloadFile(filename, content, mime = "text/plain;charset=utf-8") {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
 
 
 async function loadState() {
@@ -880,67 +892,58 @@ function bindEvents() {
   $$(".navBtn").forEach(btn => btn.addEventListener("click", () => setActiveView(btn.dataset.view)));
 
   // Top actions
-  $("#btnOptions").addEventListener("click", () => chrome.runtime.openOptionsPage());
-  $("#btnClear").addEventListener("click", async () => {
-    // if (!confirm("Isso vai apagar papers/iterações/conexões/critérios. Continuar?")) return;
-    // await chrome.storage.local.remove(Object.values(SVAT_KEYS));
-    // await loadState();
-    // renderAll();
+  const btnOptions = $("#btnOptions");
+  if (btnOptions) btnOptions.addEventListener("click", () => chrome.runtime.openOptionsPage());
+
+  const btnProjects = $("#btnProjects");
+  if (btnProjects) btnProjects.addEventListener("click", () => {
+    const url = chrome.runtime.getURL("ui/projects.html");
+    chrome.tabs.create({ url });
   });
 
-  $("#btnImport").addEventListener("click", () => $("#fileImport").click());
-  $("#fileImport").addEventListener("change", async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const text = await file.text();
-    const parsed = JSON.parse(text);
-    if (!parsed || typeof parsed !== "object" || !parsed.project || !Array.isArray(parsed.papers)) {
-      alert("JSON inválido: esperado objeto com project e papers.");
-      return;
-    }
-    state = {
-      project: parsed.project,
-      papers: parsed.papers || [],
-      iterations: parsed.iterations || [],
-      citations: parsed.citations || [],
-      criteria: parsed.criteria || {},
-    };
-    await persist();
-    renderAll();
-    alert("Importado com sucesso.");
-  });
+  // Download Citations (menu only — helpers are ready, but not linked to Paper yet)
+  const btnDl = $("#btnDownloadCitations");
+  const panel = $("#downloadCitationsPanel");
 
-  $("#btnExportJson").addEventListener("click", async () => {
-    //TODO: remover a exportação JSON
-    // const filename = `snowballing_${(state.project.id || "project").replace(/[^a-zA-Z0-9_-]/g, "_")}.json`;
-    // svatDownload(filename, JSON.stringify(state, null, 2));
-  });
-  $("#btnExportCsv").addEventListener("click", async () => {
-    // if (!state.papers.length) return alert("Sem papers para exportar.");
-    // const rows = state.papers.map(p => ({
-    //   id: p.id,
-    //   title: p.title,
-    //   year: p.year,
-    //   origin: p.origin,
-    //   iterationId: p.iterationId,
-    //   status: p.status,
-    //   criteriaId: p.criteriaId,
-    //   tags: Array.isArray(p.tags) ? p.tags.join(";") : "",
-    //   url: p.url,
-    //   createdAt: p.createdAt,
-    //   updatedAt: p.updatedAt,
-    // }));
-    // const csv = svatToCsv(rows);
-    // const filename = `triagem_${(state.project.id || "project").replace(/[^a-zA-Z0-9_-]/g, "_")}.csv`;
-    // svatDownload(filename, csv, "text/csv");
-  });
-  $("#btnExportBib").addEventListener("click", async () => {
-    // const included = state.papers.filter(p => p.status === "included");
-    // if (!included.length) return alert("Sem artigos incluídos.");
-    // const bib = svatToBibtex(included);
-    // const filename = `included_${(state.project.id || "project").replace(/[^a-zA-Z0-9_-]/g, "_")}.bib`;
-    // svatDownload(filename, bib, "application/x-bibtex");
-  });
+  function closeCitationsMenu() {
+    if (!panel || !btnDl) return;
+    panel.classList.remove("open");
+    btnDl.setAttribute("aria-expanded", "false");
+  }
+
+  function toggleCitationsMenu() {
+    if (!panel || !btnDl) return;
+    const open = panel.classList.toggle("open");
+    btnDl.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+
+  if (btnDl && panel) {
+    btnDl.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleCitationsMenu();
+    });
+
+    panel.addEventListener("click", (e) => {
+      const item = e.target.closest?.(".menuItem");
+      if (!item) return;
+      const fmt = item.dataset.format || "bibtex";
+      closeCitationsMenu();
+
+      // TODO (wire later): build a Paper instance (from core/entities.mjs) and call:
+      // paper.toBibTeX(), paper.toABNT(), paper.toAPA(), paper.toEndNoteRIS()
+      // For now, keep only the download helper ready without linking to Paper/state.
+      const placeholder = `TODO: gerar citações em ${fmt.toUpperCase()} (integração pendente).\n`;
+      const ext = fmt === "bibtex" ? "bib" : (fmt === "endnote" ? "ris" : "txt");
+      downloadFile(`citations.${ext}`, placeholder, "text/plain;charset=utf-8");
+    });
+
+    // close on outside click / esc
+    document.addEventListener("click", closeCitationsMenu);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeCitationsMenu();
+    });
+  }
+
 
   // Insights
   const btnSum = document.getElementById("btnGenerateSummary");

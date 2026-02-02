@@ -28,8 +28,8 @@
         </nav>
 
         <div class="sideFooter">
+          <button id="btnProjects" class="ghost">📁 Projetos</button>
           <button id="btnOptions" class="ghost">⚙️ Configurações</button>
-          <button id="btnClear" class="ghost danger">🧹 Limpar dados</button>
           <div class="hint">Dica: marque artigos no Scholar com botão direito → “Marcar link” → categoria.</div>
         </div>
       </aside>
@@ -41,10 +41,15 @@
             <div class="meta" id="projectMeta">—</div>
           </div>
           <div class="topActions">
-            <button id="btnImport" class="btn">⬆️ Importar JSON</button>
-            <button id="btnExportJson" class="btn">⬇️ Exportar JSON</button>
-            <button id="btnExportCsv" class="btn">⬇️ CSV</button>
-            <button id="btnExportBib" class="btn">⬇️ BibTeX</button>
+            <div class="menu" id="citationsMenu">
+              <button id="btnDownloadCitations" class="btn" aria-haspopup="true" aria-expanded="false">⬇️ Download Citations ▾</button>
+              <div class="menuPanel" id="downloadCitationsPanel" role="menu" aria-label="Download citations">
+                <button class="menuItem" data-format="bibtex" role="menuitem">BibTeX (.bib)</button>
+                <button class="menuItem" data-format="abnt" role="menuitem">ABNT (.txt)</button>
+                <button class="menuItem" data-format="apa" role="menuitem">APA (.txt)</button>
+                <button class="menuItem" data-format="endnote" role="menuitem">EndNote/RIS (.ris)</button>
+              </div>
+            </div>
             <input id="fileImport" type="file" accept="application/json" style="display:none" />
           </div>
         </header>
