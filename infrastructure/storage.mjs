@@ -17,6 +17,8 @@ class NodeFsStrategy {
     this.fs = null;
     this.path = null;
     this.baseDir = null;
+    this.activeProjectID = null;
+    this.activeProjectData = null;
   }
 
   async init(baseDir) {
@@ -104,8 +106,21 @@ class NodeFsStrategy {
 
   async loadProject(projectID) {
     const relPath = this.path.join(projectID, 'project.json');
-    const data = this.readJson(relPath);
-    return { status: "ok", data };
+    return this.readJson(relPath);
+  }
+
+  // Keep a project loaded in memory as "active"
+  async openProject(projectID) {
+    // load project data
+    const relPath = this.path.join(projectID, 'project.json');
+    const data = this.readJson(relPath) || {};
+    this.activeProjectID = projectID;
+    this.activeProjectData = data;
+    return { status: 'ok', data };
+  }
+
+  getActiveProject() {
+    return { id: this.activeProjectID, data: this.activeProjectData };
   }
 
   async deleteProject(projectID) {
@@ -136,7 +151,15 @@ class NodeFsStrategy {
     try {
       // Prefer config.json managed list
       const cfg = this.readJson('config.json');
-      if (cfg && Array.isArray(cfg.projects)) return { status: 'ok', data: cfg.projects };
+      if (cfg && Array.isArray(cfg.projects)){
+        if(this.activeProjectID){
+          const idx = cfg.projects.findIndex(p => p.id === this.activeProjectID);
+          if(idx!==-1){
+            cfg.projects[idx].active = true;
+          }
+        }
+        return { status: 'ok', data: cfg.projects };
+      } 
     } catch (e) {
       return { status: "error", message: e.message };
     }
@@ -246,7 +269,7 @@ class WebSocketStrategy {
     await this.syncBackupData();
   }
 
-  // NOVO MÉTODO: Aguarda a conexão estar pronta
+  // Aguarda a conexão estar pronta
   async ensureConnection(timeoutMs = 5000) {
     if (this.isActive()) return true;
 
@@ -303,6 +326,14 @@ class WebSocketStrategy {
 
   async loadProject(projectID) {
     return this.send('load_project', { projectID });
+  }
+
+  async openProject(projectID) {
+    return this.send('open_project', { projectID });
+  }
+
+  async getActiveProject(){
+    return this.send('get_active_project', {});
   }
 
   async deleteProject(projectID) {
@@ -579,10 +610,18 @@ class StorageService {
 
   async archiveProject(projectID) {
     if (!this.initialized) await this.init();
-    if (this.strategy && typeof this.strategy.archiveProject === 'function') {
-      return this.strategy.archiveProject(projectID);
-    }
-    return { status: 'error', message: 'Archive not supported by strategy.' };
+    return this.strategy.archiveProject(projectID);
+  }
+ 
+  // Set/get active project (delegates to strategy when available)
+  async openProject(projectID) {
+    if (!this.initialized) await this.init();
+    return this.strategy.openProject(projectID);
+  }
+
+  async getActiveProject() {
+    if (!this.initialized) await this.init();
+    return this.strategy.getActiveProject();
   }
   // ============================================================================
 }

@@ -46,7 +46,10 @@ wss.on("connection", (ws) => {
     if(messageHandler[act] instanceof Function) {
       const response = await messageHandler[act](payload.payload);
       if (response) {
-        ws.send(JSON.stringify(response));
+        console.log("📤 Enviando resposta:", response);
+        ws.send(JSON.stringify({ act, status: "ok", payload: response}));
+      }else{ 
+        ws.send(JSON.stringify({ act, status: "error", message: "No response from server" }));
       }
     }else{
       ws.send(JSON.stringify({ act: "unknown", status: "error", message: "Unknown act" }));
@@ -75,7 +78,11 @@ function verifyProjectID(payload) {
 
 const messageHandler = {
   "open_project": async (payload) => {
-    return verifyProjectID(payload) || await storage.loadProject(payload.projectID);
+    // Set the project as active in the Node storage strategy (keep in memory)
+    return verifyProjectID(payload) || await storage.openProject(payload.projectID);
+  },
+  "get_active_project": async () => {
+    return await storage.getActiveProject();
   },
   "save_project": async (payload) => {
     return verifyProjectID(payload) || await storage.saveProject(payload.projectID, payload.data);
@@ -84,8 +91,7 @@ const messageHandler = {
     return verifyProjectID(payload) || await storage.loadProject(payload.projectID);
   },
   "list_projects": async () => {
-    console.log("Listing projects via WebSocket");
-    return { act: "list_projects", payload: await storage.listProjects() };
+    return await storage.listProjects();
   },
   "delete_project": async (payload) => {
     return verifyProjectID(payload) || await storage.deleteProject(payload.projectID);
