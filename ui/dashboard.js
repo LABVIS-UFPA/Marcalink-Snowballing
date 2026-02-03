@@ -5,75 +5,6 @@ let state = null;
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
-// Helper: download a file in the browser (Blob + <a download>)
-// NOTE: This is intentionally UI-only. The formatting logic lives in core/entities.mjs (Paper).
-function downloadFile(filename, content, mime = "text/plain;charset=utf-8") {
-  try {
-    const blob = new Blob([content], { type: mime });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 2500);
-  } catch (e) {
-    console.error("downloadFile failed", e);
-    alert("Não foi possível baixar o arquivo.");
-  }
-}
-
-// Best-effort: format a citation from a Paper instance.
-// IMPORTANT: do not "link" this button with the Paper entity yet; we only prepare helpers.
-function formatCitationFromPaper(paper, format) {
-  if (!paper) return "";
-  const f = String(format || "").toLowerCase();
-  try {
-    if (f === "bibtex" && typeof paper.toBibTeX === "function") return paper.toBibTeX();
-    if (f === "abnt" && typeof paper.toABNT === "function") return paper.toABNT();
-    if (f === "apa" && typeof paper.toAPA === "function") return paper.toAPA();
-    if ((f === "endnote" || f === "ris") && typeof paper.toEndNoteRIS === "function") return paper.toEndNoteRIS();
-  } catch (e) {
-    console.warn("formatCitationFromPaper failed", e);
-  }
-  return "";
-}
-
-function defaultCitationFilename(format) {
-  const f = String(format || "").toLowerCase();
-  if (f === "bibtex") return "citations.bib";
-  if (f === "endnote" || f === "ris") return "citations.ris";
-  return "citations.txt";
-}
-
-function wireMenu({ buttonEl, panelEl, onPick }) {
-  if (!buttonEl || !panelEl) return;
-
-  const close = () => panelEl.classList.remove("open");
-  const toggle = (e) => {
-    e?.preventDefault?.();
-    e?.stopPropagation?.();
-    panelEl.classList.toggle("open");
-  };
-
-  buttonEl.addEventListener("click", toggle);
-  panelEl.addEventListener("click", (e) => {
-    const item = e.target.closest?.(".menuItem");
-    if (!item) return;
-    const fmt = item.dataset.format;
-    close();
-    onPick?.(fmt);
-  });
-  document.addEventListener("click", (e) => {
-    if (panelEl.contains(e.target) || buttonEl.contains(e.target)) return;
-    close();
-  });
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") close();
-  });
-}
-
 
 async function loadState() {
   //TODO: migrar para usar o infrastructure/storage.mjs
@@ -949,31 +880,12 @@ function bindEvents() {
   $$(".navBtn").forEach(btn => btn.addEventListener("click", () => setActiveView(btn.dataset.view)));
 
   // Top actions
-  const btnProjects = document.getElementById("btnProjects");
-  if (btnProjects) btnProjects.addEventListener("click", () => {
-    
-    // Go to the dedicated Projects page (ui/projects.html).
-    // Note: we intentionally *don't* open options/config here.
-    try {
-      window.location.href = "projects.html";
-    } catch {
-      alert("Não foi possível abrir a página de Projetos.");
-    }
-  });
   $("#btnOptions").addEventListener("click", () => chrome.runtime.openOptionsPage());
-  // (btnClear removed) — replaced by "Projetos"
-
-  // Download Citations menu (UI only — formatting lives in core/entities.mjs)
-  wireMenu({
-    buttonEl: document.getElementById("btnDownloadCitations"),
-    panelEl: document.getElementById("downloadCitationsPanel"),
-    onPick: (format) => {
-      // NOTE: Not linked yet — later we will pass a Paper instance here.
-      // For now, keep it non-breaking and user-friendly.
-      const msg = "(Em breve) Para baixar citações, primeiro selecione/abra um artigo.";
-      console.warn("Download Citations not wired yet", { format });
-      alert(msg);
-    }
+  $("#btnClear").addEventListener("click", async () => {
+    // if (!confirm("Isso vai apagar papers/iterações/conexões/critérios. Continuar?")) return;
+    // await chrome.storage.local.remove(Object.values(SVAT_KEYS));
+    // await loadState();
+    // renderAll();
   });
 
   
