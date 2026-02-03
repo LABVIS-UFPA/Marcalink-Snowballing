@@ -3,16 +3,16 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Dashboard • Marcalink Snowballing</title>
+    <title>Dashboard •  iCipó</title>
     <link rel="stylesheet" href="dashboard.css" />
   </head>
   <body>
     <div class="app">
       <aside class="sidebar">
         <div class="brand">
-          <div class="logo">SVAT</div>
+          <div class="logo">iCipó</div>
           <div>
-            <div class="brandTitle">Snowballing</div>
+            <div class="brandTitle"> dashboard</div>
             <div class="brandSub" id="brandSub">—</div>
           </div>
         </div>
@@ -28,8 +28,8 @@
         </nav>
 
         <div class="sideFooter">
-          <button id="btnProjects" class="ghost">📁 Projetos</button>
           <button id="btnOptions" class="ghost">⚙️ Configurações</button>
+          <button id="btnClear" class="ghost danger">🧹 Limpar dados</button>
           <div class="hint">Dica: marque artigos no Scholar com botão direito → “Marcar link” → categoria.</div>
         </div>
       </aside>
@@ -39,18 +39,6 @@
           <div class="topLeft">
             <h1 id="projectTitle">Projeto</h1>
             <div class="meta" id="projectMeta">—</div>
-          </div>
-          <div class="topActions">
-            <div class="menu" id="citationsMenu">
-              <button id="btnDownloadCitations" class="btn" aria-haspopup="true" aria-expanded="false">⬇️ Download Citations ▾</button>
-              <div class="menuPanel" id="downloadCitationsPanel" role="menu" aria-label="Download citations">
-                <button class="menuItem" data-format="bibtex" role="menuitem">BibTeX (.bib)</button>
-                <button class="menuItem" data-format="abnt" role="menuitem">ABNT (.txt)</button>
-                <button class="menuItem" data-format="apa" role="menuitem">APA (.txt)</button>
-                <button class="menuItem" data-format="endnote" role="menuitem">EndNote/RIS (.ris)</button>
-              </div>
-            </div>
-            <input id="fileImport" type="file" accept="application/json" style="display:none" />
           </div>
         </header>
 

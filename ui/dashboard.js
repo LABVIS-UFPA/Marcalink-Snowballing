@@ -4,18 +4,6 @@ let state = null;
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
-// Helper: download a file from an extension page (Blob + <a download>).
-function downloadFile(filename, content, mime = "text/plain;charset=utf-8") {
-  const blob = new Blob([content], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1500);
-}
 
 
 async function loadState() {
@@ -892,59 +880,15 @@ function bindEvents() {
   $$(".navBtn").forEach(btn => btn.addEventListener("click", () => setActiveView(btn.dataset.view)));
 
   // Top actions
-  const btnOptions = $("#btnOptions");
-  if (btnOptions) btnOptions.addEventListener("click", () => chrome.runtime.openOptionsPage());
-
-  const btnProjects = $("#btnProjects");
-  if (btnProjects) btnProjects.addEventListener("click", () => {
-    const url = chrome.runtime.getURL("ui/projects.html");
-    chrome.tabs.create({ url });
+  $("#btnOptions").addEventListener("click", () => chrome.runtime.openOptionsPage());
+  $("#btnClear").addEventListener("click", async () => {
+    // if (!confirm("Isso vai apagar papers/iterações/conexões/critérios. Continuar?")) return;
+    // await chrome.storage.local.remove(Object.values(SVAT_KEYS));
+    // await loadState();
+    // renderAll();
   });
 
-  // Download Citations (menu only — helpers are ready, but not linked to Paper yet)
-  const btnDl = $("#btnDownloadCitations");
-  const panel = $("#downloadCitationsPanel");
-
-  function closeCitationsMenu() {
-    if (!panel || !btnDl) return;
-    panel.classList.remove("open");
-    btnDl.setAttribute("aria-expanded", "false");
-  }
-
-  function toggleCitationsMenu() {
-    if (!panel || !btnDl) return;
-    const open = panel.classList.toggle("open");
-    btnDl.setAttribute("aria-expanded", open ? "true" : "false");
-  }
-
-  if (btnDl && panel) {
-    btnDl.addEventListener("click", (e) => {
-      e.stopPropagation();
-      toggleCitationsMenu();
-    });
-
-    panel.addEventListener("click", (e) => {
-      const item = e.target.closest?.(".menuItem");
-      if (!item) return;
-      const fmt = item.dataset.format || "bibtex";
-      closeCitationsMenu();
-
-      // TODO (wire later): build a Paper instance (from core/entities.mjs) and call:
-      // paper.toBibTeX(), paper.toABNT(), paper.toAPA(), paper.toEndNoteRIS()
-      // For now, keep only the download helper ready without linking to Paper/state.
-      const placeholder = `TODO: gerar citações em ${fmt.toUpperCase()} (integração pendente).\n`;
-      const ext = fmt === "bibtex" ? "bib" : (fmt === "endnote" ? "ris" : "txt");
-      downloadFile(`citations.${ext}`, placeholder, "text/plain;charset=utf-8");
-    });
-
-    // close on outside click / esc
-    document.addEventListener("click", closeCitationsMenu);
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") closeCitationsMenu();
-    });
-  }
-
-
+  
   // Insights
   const btnSum = document.getElementById("btnGenerateSummary");
   if (btnSum) btnSum.addEventListener("click", () => {
