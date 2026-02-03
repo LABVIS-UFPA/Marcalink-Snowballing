@@ -17,6 +17,8 @@ class NodeFsStrategy {
     this.fs = null;
     this.path = null;
     this.baseDir = null;
+    this.activeProjectID = null;
+    this.activeProjectData = null;
   }
 
   async init(baseDir) {
@@ -65,18 +67,36 @@ class NodeFsStrategy {
   }
 
   // CRUD methods for Project
-  async saveProject(projectName, projectData) {
-    const relPath = this.path.join(projectName, 'project.json');
-    this.writeJson(relPath, projectData);
+  //TODO: verificar se pelo id se o projeto se encontra arquivado. Pois isso, da forma como está, vai sobreescrever projetos arquivados.
+  async saveProject(projectID, projectData) {
+    const relPath = this.path.join(projectID, 'project.json');
 
-    // ensure config.json contains project entry
+    // Read existing project if present
+    let existing = this.readJson(relPath) || {};
+
+    // Merge: preserve existing properties, override/add with incoming projectData
+    const merged = { ...existing, ...projectData };
+
+    // Write merged project data
+    this.writeJson(relPath, merged);
+
+    // ensure config.json contains project entry and update metadata if needed
     try {
       const cfg = this.readJson('config.json') || { projects: [] };
       if (!Array.isArray(cfg.projects)) cfg.projects = [];
-      if (!cfg.projects.some(p => p.name === projectName)) {
-        cfg.projects.push({ name: projectName });
-        this.writeJson('config.json', cfg);
+      const idx = cfg.projects.findIndex(p => p.id === projectID);
+      if (idx === -1) {
+        cfg.projects.push({ 
+          id: projectID, 
+          name: merged.name,
+          researchers: merged.researchers
+        });
+      } else {
+        // update name/researchers if provided in merged
+        if (merged.name) cfg.projects[idx].name = merged.name;
+        if (merged.researchers) cfg.projects[idx].researchers = merged.researchers;
       }
+      this.writeJson('config.json', cfg);
     } catch (e) {
       // ignore errors updating config
     }
@@ -84,35 +104,42 @@ class NodeFsStrategy {
     return { status: "ok", message: "Project saved." };
   }
 
-  async loadProject(projectName) {
-    const relPath = this.path.join(projectName, 'project.json');
-    const data = this.readJson(relPath);
-    return { status: "ok", data };
+  async loadProject(projectID) {
+    const relPath = this.path.join(projectID, 'project.json');
+    return this.readJson(relPath);
   }
 
-  async deleteProject(projectName) {
-    const full = this.path.join(this.baseDir, projectName);
-    // remove from config.json
-    try {
-      const cfg = this.readJson('config.json') || { projects: [] };
-      cfg.projects = Array.isArray(cfg.projects) ? cfg.projects.filter(p => p.name !== projectName) : [];
-      this.writeJson('config.json', cfg);
-    } catch (e) {
-      // ignore
-    }
+  // Keep a project loaded in memory as "active"
+  async openProject(projectID) {
+    // load project data
+    const relPath = this.path.join(projectID, 'project.json');
+    const data = this.readJson(relPath) || {};
+    this.activeProjectID = projectID;
+    this.activeProjectData = data;
+    return { status: 'ok', data };
+  }
 
-    if (this.fs.existsSync(full)) {
+  getActiveProject() {
+    return { id: this.activeProjectID, data: this.activeProjectData };
+  }
+
+  async deleteProject(projectID) {
+    const full = this.path.join(this.baseDir, projectID);
+    // remove from config.json
+    const {status} = this.archiveProject(projectID);
+
+    if (status==="ok" && this.fs.existsSync(full)) {
       this.fs.rmSync(full, { recursive: true });
       return { status: "ok", message: "Project deleted." };
     }
     return { status: "ok", message: "Project not found." };
   }
 
-  async archiveProject(projectName) {
+  async archiveProject(projectID) {
     // remove project from config.json but keep files on disk
     try {
-      const cfg = this.readJson('config.json') || { projects: [] };
-      cfg.projects = Array.isArray(cfg.projects) ? cfg.projects.filter(p => p.name !== projectName) : [];
+      const cfg = this.readJson('config.json');
+      cfg.projects = Array.isArray(cfg.projects) ? cfg.projects.filter(p => p.id !== projectID) : [];
       this.writeJson('config.json', cfg);
       return { status: 'ok', message: 'Project archived.' };
     } catch (e) {
@@ -124,16 +151,19 @@ class NodeFsStrategy {
     try {
       // Prefer config.json managed list
       const cfg = this.readJson('config.json');
-      if (cfg && Array.isArray(cfg.projects)) return { status: 'ok', data: cfg.projects.map(p => p.name) };
-
-      const entries = this.fs.readdirSync(this.baseDir, { withFileTypes: true });
-      const dirs = entries
-        .filter(e => e.isDirectory())
-        .map(e => e.name);
-      return { status: "ok", data: dirs };
+      if (cfg && Array.isArray(cfg.projects)){
+        if(this.activeProjectID){
+          const idx = cfg.projects.findIndex(p => p.id === this.activeProjectID);
+          if(idx!==-1){
+            cfg.projects[idx].active = true;
+          }
+        }
+        return { status: 'ok', data: cfg.projects };
+      } 
     } catch (e) {
       return { status: "error", message: e.message };
     }
+    return { status: 'ok', data: [] };
   }
 
   // CRUD methods for Paper
@@ -230,62 +260,104 @@ class WebSocketStrategy {
     this.wsManager = ws;
 
     // Register for reconnection events to sync backup data
-      if (this.onOpen) {
-        this.onOpen(async () => {
-          await this.syncBackupData();
-        });
-      }
-      // Check if there's backup data on startup and sync if needed
-      await this.syncBackupData();
+    if (this.onOpen) {
+      this.onOpen(async () => {
+        await this.syncBackupData();
+      });
+    }
+    // Check if there's backup data on startup and sync if needed
+    await this.syncBackupData();
+  }
+
+  // Aguarda a conexão estar pronta
+  async ensureConnection(timeoutMs = 5000) {
+    if (this.isActive()) return true;
+
+    return new Promise((resolve) => {
+      let isResolved = false;
+
+      // Timeout de segurança para não travar a aplicação eternamente
+      const timer = setTimeout(() => {
+        if (!isResolved) {
+          isResolved = true;
+          console.warn("Timeout aguardando WebSocket.");
+          resolve(false); 
+        }
+      }, timeoutMs);
+
+      // Usa o listener melhorado do wsManager
+      this.wsManager.addOnOpenListener(() => {
+        if (!isResolved) {
+          clearTimeout(timer);
+          isResolved = true;
+          resolve(true);
+        }
+      });
+    });
   }
 
   async send(act, payload) {
+    // 1. Aguarda a conexão ser estabelecida
+    console.log("WebSocketStrategy.send", act, payload);
+    const isConnected = await this.ensureConnection();
+    console.log("WebSocketStrategy.isConnected", isConnected);
+
     return new Promise((resolve) => {
       // In a real scenario, we'd use a request-response pattern
       // For now, send via wsManager
-      if (this.wsManager && this.wsManager.send) {
-        this.wsManager.send(JSON.stringify({ act, payload }));
-        resolve({ status: "ok" });
+      if (isConnected && this.wsManager && this.wsManager.send) {
+        this.wsManager.send({ act, payload }, (response) => {
+          console.log("WebSocketStrategy.receive", response);
+          resolve(response);
+        });
       } else {
         resolve({ status: "error", message: "WebSocket not connected" });
       }
     });
   }
 
-  async saveProject(projectName, projectData) {
-    return this.send('save_project', { projectName, data: projectData });
+  async saveProject(projectID, projectData) {
+    return this.send('save_project', { projectID, data: projectData });
   }
 
-  async archiveProject(projectName) {
-    return this.send('archive_project', { projectName });
+  async archiveProject(projectID) {
+    return this.send('archive_project', { projectID });
   }
 
-  async loadProject(projectName) {
-    return this.send('load_project', { projectName });
+  async loadProject(projectID) {
+    return this.send('load_project', { projectID });
   }
 
-  async deleteProject(projectName) {
-    return this.send('delete_project', { projectName });
+  async openProject(projectID) {
+    return this.send('open_project', { projectID });
+  }
+
+  async getActiveProject(){
+    return this.send('get_active_project', {});
+  }
+
+  async deleteProject(projectID) {
+    return this.send('delete_project', { projectID });
   }
 
   async listProjects() {
     return this.send('list_projects', {});
   }
 
-  async savePaper(projectName, paperId, paperData) {
-    return this.send('save_paper', { projectName, paperId, data: paperData });
+  async savePaper(projectID, paperId, paperData) {
+    return this.send('save_paper', { projectID, paperId, data: paperData });
   }
 
-  async loadPaper(projectName, paperId) {
-    return this.send('load_paper', { projectName, paperId });
+  async loadPaper(projectID, paperId) {
+    return this.send('load_paper', { projectID, paperId });
   }
 
-  async deletePaper(projectName, paperId) {
-    return this.send('delete_paper', { projectName, paperId });
+  async deletePaper(projectID, paperId) {
+    return this.send('delete_paper', { projectID, paperId });
   }
 
-  async listPapers(projectName) {
-    return this.send('list_papers', { projectName });
+  async listPapers(projectID) {
+    return this.send('list_papers', { projectID });
   }
 
   // Storage-like get/set methods (sends via WebSocket)
@@ -485,19 +557,19 @@ class StorageService {
 
   // ========== Project CRUD ==========
 
-  async saveProject(projectName, projectData) {
+  async saveProject(projectID, projectData) {
     if (!this.initialized) await this.init();
-    return this.strategy.saveProject(projectName, projectData);
+    return this.strategy.saveProject(projectID, projectData);
   }
 
-  async loadProject(projectName) {
+  async loadProject(projectID) {
     if (!this.initialized) await this.init();
-    return this.strategy.loadProject(projectName);
+    return this.strategy.loadProject(projectID);
   }
 
-  async deleteProject(projectName) {
+  async deleteProject(projectID) {
     if (!this.initialized) await this.init();
-    return this.strategy.deleteProject(projectName);
+    return this.strategy.deleteProject(projectID);
   }
 
   async listProjects() {
@@ -536,12 +608,20 @@ class StorageService {
     return [];
   }
 
-  async archiveProject(projectName) {
+  async archiveProject(projectID) {
     if (!this.initialized) await this.init();
-    if (this.strategy && typeof this.strategy.archiveProject === 'function') {
-      return this.strategy.archiveProject(projectName);
-    }
-    return { status: 'error', message: 'Archive not supported by strategy.' };
+    return this.strategy.archiveProject(projectID);
+  }
+ 
+  // Set/get active project (delegates to strategy when available)
+  async openProject(projectID) {
+    if (!this.initialized) await this.init();
+    return this.strategy.openProject(projectID);
+  }
+
+  async getActiveProject() {
+    if (!this.initialized) await this.init();
+    return this.strategy.getActiveProject();
   }
   // ============================================================================
 }

@@ -1,7 +1,10 @@
+import { storage } from '../infrastructure/storage.mjs';
+
 document.addEventListener('DOMContentLoaded', () => {
   const filterInput = document.getElementById('newProjectName');
   const openCreateBtn = document.getElementById('openCreateBtn');
   const createSidenav = document.getElementById('createSidenav');
+  const createSidenavTitle = createSidenav && createSidenav.querySelector('h2');
   const createConfirmBtn = document.getElementById('createProjectConfirmBtn');
   const cancelCreateBtn = document.getElementById('cancelCreateBtn');
   const projectNameInput = document.getElementById('projectName');
@@ -49,38 +52,33 @@ document.addEventListener('DOMContentLoaded', () => {
     right.className = 'right';
 
     const btnRename = document.createElement('button');
-    btnRename.textContent = 'Renomear';
+    btnRename.textContent = 'Editar';
     btnRename.addEventListener('click', async () => {
-      const newName = prompt('Novo nome do projeto', p.name || '');
-      if (!newName) return;
-      // update local
-      p.name = newName;
-      title.textContent = newName;
-      // callback placeholder
-      chrome.runtime?.sendMessage?.({ action: 'projects.rename', id: p.id, name: newName });
+      // Open sidenav in edit mode with project data
+      const project = await storage.loadProject(p.id);
+      openEditSidenav(project);
     });
 
     const btnSet = document.createElement('button');
-    btnSet.textContent = p.isCurrent ? 'Atual' : 'Marcar atual';
-    btnSet.classList.toggle('dark', !!p.isCurrent);
-    btnSet.addEventListener('click', () => {
-      // update local state
-      projects.forEach((pr) => (pr.isCurrent = pr.id === p.id));
-      // callback placeholder
-      chrome.runtime?.sendMessage?.({ action: 'projects.setCurrent', id: p.id });
-      // visual
-      Array.from(projectList.querySelectorAll('li')).forEach((n) => n.querySelector('button.dark')?.classList.remove('dark'));
-      btnSet.classList.add('dark');
-      btnSet.textContent = 'Atual';
+    btnSet.textContent = p.active ? 'Ver' : 'Abrir';
+    btnSet.addEventListener('click', async () => {
+      // Ask storage to open the project (sets active project) and navigate to dashboard
+      try {
+        await storage.openProject(p.id);
+        window.location.href = 'dashboard.html';
+      } catch (e) {
+        console.warn('openProject failed', e);
+        alert('Falha ao abrir o projeto. Veja console.');
+      }
     });
 
     const btnRemove = document.createElement('button');
-    btnRemove.textContent = 'Remover';
-    btnRemove.addEventListener('click', () => {
-      if (!confirm(`Remover o projeto "${p.name}"?`)) return;
-      // remove local
+    btnRemove.textContent = 'Arquivar';
+    btnRemove.addEventListener('click', async () => {
+      if (!confirm(`Arquivar o projeto "${p.name}"?`)) return;
+      // remove local from list
       projects = projects.filter((x) => x.id !== p.id);
-      chrome.runtime?.sendMessage?.({ action: 'projects.remove', id: p.id });
+      try { await storage.archiveProject(p.id); } catch (e) { console.warn('archiveProject failed', e); }
       li.remove();
       if (!projectList.children.length) placeholder();
     });
@@ -92,6 +90,37 @@ document.addEventListener('DOMContentLoaded', () => {
     li.appendChild(left);
     li.appendChild(right);
     return li;
+  }
+
+  // Open the create/edit sidenav prefilled with project data
+  let editMode = false;
+  let editingProjectID = null;
+  function openEditSidenav(project) {
+    editMode = true;
+    editingProjectID = project.id;
+    projectNameInput.value = project.name || '';
+    projectDescriptionInput.value = project.description || '';
+    projectResearchersInput.value = (project.researchers || []).join(', ');
+    projectObjectiveInput.value = project.objective || '';
+    projectCriteriaInput.value = project.criteria || '';
+    createConfirmBtn.textContent = 'Salvar';
+    if (createSidenavTitle) createSidenavTitle.textContent = 'Edite o projeto';
+    openSidenav();
+  }
+
+  // Open the create sidenav with cleared fields and proper labels
+  function openCreateSidenav() {
+    editMode = false;
+    editingProjectID = null;
+    // clear inputs
+    projectNameInput.value = '';
+    projectDescriptionInput.value = '';
+    projectResearchersInput.value = '';
+    projectObjectiveInput.value = '';
+    projectCriteriaInput.value = '';
+    createConfirmBtn.textContent = 'Criar projeto';
+    if (createSidenavTitle) createSidenavTitle.textContent = 'Criar projeto';
+    openSidenav();
   }
 
   function renderProjects(filter = '') {
@@ -137,7 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   openCreateBtn.addEventListener('click', () => {
-    openSidenav();
+    openCreateSidenav();
   });
 
   cancelCreateBtn.addEventListener('click', () => {
@@ -145,30 +174,60 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   createConfirmBtn.addEventListener('click', () => {
-    const name = (projectNameInput.value || '').trim();
+    (async () => {
+      const name = (projectNameInput.value || '').trim();
     const desc = (projectDescriptionInput.value || '').trim();
     const researchers = (projectResearchersInput.value || '').trim();
     if (!name) return alert('O nome do projeto é obrigatório.');
     if (!desc) return alert('A descrição é obrigatória.');
     if (!researchers) return alert('Informe ao menos um pesquisador.');
 
-    const baseId = slugifyName(name);
-    const id = ensureUniqueId(baseId);
+    const objective = (projectObjectiveInput.value || '').trim();
+    const criteria = (projectCriteriaInput.value || '').trim();
 
-    const p = {
-      id,
-      name,
-      description: desc,
-      researchers: researchers.split(',').map((s) => s.trim()).filter(Boolean),
-      objective: (projectObjectiveInput.value || '').trim(),
-      criteria: (projectCriteriaInput.value || '').trim(),
-      isCurrent: false,
-    };
-
-    projects.push(p);
-    chrome.runtime?.sendMessage?.({ action: 'projects.create', project: p });
-    renderProjects(filterInput.value || '');
-    closeSidenav();
+    try {
+      if (editMode && editingProjectID) {
+        // Update existing project
+        const idx = projects.findIndex((pr) => pr.id === editingProjectID);
+        if (idx !== -1) {
+          const p = projects[idx];
+          p.name = name;
+          p.description = desc;
+          p.researchers = researchers.split(',').map((s) => s.trim()).filter(Boolean);
+          p.objective = objective;
+          p.criteria = criteria;
+          await storage.saveProject(p.id, p);
+          // renderProjects(filterInput.value || '');
+        }
+      } else {
+        // Create new project
+        const baseId = slugifyName(name);
+        const id = ensureUniqueId(baseId);
+        const p = {
+          id,
+          name,
+          description: desc,
+          researchers: researchers.split(',').map((s) => s.trim()).filter(Boolean),
+          objective,
+          criteria,
+          isCurrent: false,
+        };
+        await storage.saveProject(p.id, p);
+        projects.push(p);
+        // renderProjects(filterInput.value || '');
+      }
+      
+      // reset edit mode and UI
+      editMode = false;
+      editingProjectID = null;
+      createConfirmBtn.textContent = 'Criar projeto';
+      closeSidenav();
+      loadFromStorage();
+    } catch (e) {
+      console.warn('saveProject failed', e);
+      alert('Falha ao salvar o projeto. Veja console.');
+    }
+    })();
   });
 
   filterInput.addEventListener('input', () => renderProjects(filterInput.value || ''));
@@ -176,12 +235,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // initial safety placeholder
   setTimeout(() => {
     if (!projects.length) placeholder();
-  }, 150);
+  }, 6000);
 
-  // Optionally, load from backend when integrated:
-  /* chrome.runtime?.sendMessage?.({ action: 'projects.list' }, (resp) => {
-    const items = (resp && resp.projects) ? resp.projects : [];
-    projects = items;
-    renderProjects();
-  }); */
+  // Load projects from storage
+  async function loadFromStorage() {
+    try {
+      projects = await storage.listProjects();
+      renderProjects(filterInput.value || '');
+    } catch (e) {
+      console.warn('Failed to load projects from storage', e);
+    }
+  }
+  loadFromStorage();
 });
