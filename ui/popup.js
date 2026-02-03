@@ -51,11 +51,4 @@ document.getElementById("file").addEventListener("change", async (e) => {
   // alert("Importado com sucesso.");
 });
 
-// TODO: Remover esse botão também.
-document.getElementById("clearData").addEventListener("click", async () => {
-  // if (!confirm("Isso vai apagar papers/iterações/conexões/critérios. Continuar?")) return;
-  // await chrome.storage.local.remove(Object.values(SVAT_KEYS));
-  // await refresh();
-});
-
 refresh();

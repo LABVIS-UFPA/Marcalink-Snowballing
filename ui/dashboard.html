@@ -28,8 +28,8 @@
         </nav>
 
         <div class="sideFooter">
+          <button id="btnProjects" class="ghost">📁 Projetos</button>
           <button id="btnOptions" class="ghost">⚙️ Configurações</button>
-          <button id="btnClear" class="ghost danger">🧹 Limpar dados</button>
           <div class="hint">Dica: marque artigos no Scholar com botão direito → “Marcar link” → categoria.</div>
         </div>
       </aside>
@@ -102,6 +102,17 @@
             <select id="f_iteration" class="select">
               <option value="all">Iteração: todas</option>
             </select>
+
+            <div class="menu" id="downloadCitationsMenu">
+              <button id="btnDownloadCitations" class="btn">⬇️ Download Citations</button>
+              <div id="downloadCitationsPanel" class="menuPanel" aria-label="Menu de Download Citations">
+                <button class="menuItem" data-format="bibtex">BibTeX (.bib)</button>
+                <button class="menuItem" data-format="abnt">ABNT (texto)</button>
+                <button class="menuItem" data-format="apa">APA (texto)</button>
+                <button class="menuItem" data-format="endnote">EndNote / RIS (.ris)</button>
+              </div>
+            </div>
+
             <button id="btnBulkInclude" class="btn">Incluir</button>
             <button id="btnBulkExclude" class="btn">Excluir</button>
             <button id="btnBulkPending" class="btn">Pendente</button>
