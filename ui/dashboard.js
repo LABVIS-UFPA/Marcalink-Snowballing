@@ -227,7 +227,6 @@ function updateProjectMetaClamp(expand) {
 
   const needsClamp = desc.scrollWidth > desc.clientWidth + 1;
   if (!needsClamp) {
-    desc.classList.remove("clamped");
     toggle.classList.add("hidden");
     toggle.onclick = null;
     if (topbar) topbar.classList.remove("metaExpanded");
