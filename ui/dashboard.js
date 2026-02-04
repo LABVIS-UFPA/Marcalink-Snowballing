@@ -1,4 +1,5 @@
 import {fmtDate, normalizeStr, jaccard} from '../core/utils.mjs';
+import { storage } from '../infrastructure/storage.mjs';
 
 let state = null;
 
@@ -6,15 +7,93 @@ const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
 
+function formatResearchers(value) {
+  if (Array.isArray(value)) return value.map(v => String(v).trim()).filter(Boolean).join(', ');
+  if (typeof value === 'string') {
+    return value.split(',').map(v => v.trim()).filter(Boolean).join(', ');
+  }
+  return '';
+}
+
+function toggleNoActiveProjectNotice(show) {
+  const el = document.getElementById('noActiveProjectNotice');
+  if (!el) return;
+  el.classList.toggle('hidden', !show);
+}
+
+function toggleServerOfflineNotice(show) {
+  const el = document.getElementById('serverOfflineNotice');
+  if (!el) return;
+  el.classList.toggle('hidden', !show);
+}
+
+function isConnectionError(res, err) {
+  if (err) return true;
+  if (!res) return false;
+  if (res.status === 'error') return true;
+  const msg = (res.message || res.error || '').toString().toLowerCase();
+  return msg.includes('not connected') || msg.includes('websocket') || msg.includes('offline') || msg.includes('timeout');
+}
+
 async function loadState() {
-  //TODO: migrar para usar o infrastructure/storage.mjs
-  // await svatMigrateIfNeeded();
-  // state = await svatGetAll();
-  // // Ensure current iteration exists
-  // if (state.project.currentIterationId && !state.iterations.find(i => i.id === state.project.currentIterationId)) {
-  //   state.iterations.push({ id: state.project.currentIterationId, type: "snowballing", mode: "both", createdAt: svatNowIso() });
-  //   await svatSetAll(state);
-  // }
+  const baseState = {
+    project: {},
+    papers: [],
+    iterations: [],
+    citations: [],
+    criteria: {},
+  };
+
+  try {
+    const activeRes = await storage.getActiveProject();
+    if (isConnectionError(activeRes)) {
+      state = baseState;
+      toggleServerOfflineNotice(true);
+      toggleNoActiveProjectNotice(false);
+      return;
+    }
+    const activePayload = activeRes && activeRes.status && activeRes.data ? activeRes.data : activeRes;
+    const activeId = activePayload?.id || null;
+    let projectData = activePayload?.data || null;
+
+    if (!projectData && activeId) {
+      const loaded = await storage.loadProject(activeId);
+      projectData = loaded && loaded.status && loaded.data ? loaded.data : loaded;
+    }
+
+    if (!activeId && !projectData) {
+      state = baseState;
+      toggleServerOfflineNotice(false);
+      toggleNoActiveProjectNotice(true);
+      return;
+    }
+
+    const project = {
+      ...(projectData || {}),
+      id: activeId || projectData?.id,
+    };
+
+    let papers = [];
+    if (activeId) {
+      const papersRes = await storage.listPapers(activeId);
+      if (Array.isArray(papersRes)) papers = papersRes;
+      else if (papersRes?.data && Array.isArray(papersRes.data)) papers = papersRes.data;
+    }
+
+    const iterations = Array.isArray(projectData?.iterations) ? projectData.iterations : [];
+    const citations = Array.isArray(projectData?.citations) ? projectData.citations : [];
+    const critCandidate = projectData?.criteriaMap ?? projectData?.criteria;
+    const criteria = (critCandidate && typeof critCandidate === 'object' && !Array.isArray(critCandidate)) ? critCandidate : {};
+
+    state = { project, papers, iterations, citations, criteria };
+    toggleServerOfflineNotice(false);
+    toggleNoActiveProjectNotice(false);
+  } catch (e) {
+    console.warn('loadState failed', e);
+    state = baseState;
+    toggleServerOfflineNotice(true);
+    toggleNoActiveProjectNotice(false);
+  }
 }
 
 function setActiveView(view) {
@@ -48,9 +127,58 @@ function pushHistory(paper, action, details = {}) {
 }
 
 function renderHeader() {
-  $("#projectTitle").textContent = state.project.title || state.project.id || "Projeto";
-  $("#projectMeta").textContent = `ID: ${state.project.id || "—"} • Pesquisador: ${state.project.researcher || "—"} • Iteração atual: ${state.project.currentIterationId || "I1"}`;
-  $("#brandSub").textContent = `Iteração ${state.project.currentIterationId || "I1"}`;
+  const project = state?.project || {};
+  const title = project.name || project.title || project.id || "Projeto";
+  const description = project.description || project.objective || "Sem descrição";
+  const researchers = formatResearchers(project.researchers || project.researcher) || "—";
+
+  $("#projectTitle").textContent = title;
+  const meta = $("#projectMeta");
+  if (meta) {
+    meta.innerHTML = `
+      <div class="metaLine metaResearchers">Pesquisadores: ${escapeHtml(researchers)}</div>
+      <div class="metaLine metaDescWrap">
+        <span class="metaDesc" id="projectMetaDesc">${escapeHtml(description)}</span>
+        <button class="linkBtn metaToggle hidden" id="projectMetaToggle" type="button">Ler mais</button>
+      </div>
+    `;
+    updateProjectMetaClamp(false);
+  }
+  $("#brandSub").textContent = project.id ? `ID: ${project.id}` : "Sem projeto ativo";
+}
+
+function updateProjectMetaClamp(expand) {
+  const desc = document.getElementById("projectMetaDesc");
+  const toggle = document.getElementById("projectMetaToggle");
+  const topbar = document.querySelector(".topbar");
+  if (!desc || !toggle) return;
+
+  desc.classList.add("clamped");
+  desc.classList.remove("expanded");
+
+  const needsClamp = desc.scrollWidth > desc.clientWidth + 1;
+  if (!needsClamp) {
+    desc.classList.remove("clamped");
+    toggle.classList.add("hidden");
+    toggle.onclick = null;
+    if (topbar) topbar.classList.remove("metaExpanded");
+    return;
+  }
+
+  if (expand) {
+    desc.classList.add("expanded");
+    desc.classList.remove("clamped");
+    toggle.textContent = "Ler menos";
+    if (topbar) topbar.classList.add("metaExpanded");
+  } else {
+    desc.classList.add("clamped");
+    desc.classList.remove("expanded");
+    toggle.textContent = "Ler mais";
+    if (topbar) topbar.classList.remove("metaExpanded");
+  }
+
+  toggle.classList.remove("hidden");
+  toggle.onclick = () => updateProjectMetaClamp(!desc.classList.contains("expanded"));
 }
 
 function renderOverview() {
@@ -878,6 +1006,8 @@ function renderAll() {
 function bindEvents() {
   // Navigation
   $$(".navBtn").forEach(btn => btn.addEventListener("click", () => setActiveView(btn.dataset.view)));
+
+  window.addEventListener("resize", () => updateProjectMetaClamp(false));
 
   // Top actions
   $("#btnOptions").addEventListener("click", () => chrome.runtime.openOptionsPage());
