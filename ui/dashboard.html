@@ -8,10 +8,13 @@
   </head>
   <body>
     <div class="app">
+      
       <aside class="sidebar">
         <div class="brand">
           <div class="logo">SVAT</div>
           <div>
+
+          
             <div class="brandTitle">Snowballing</div>
             <div class="brandSub" id="brandSub">—</div>
           </div>
@@ -299,6 +302,15 @@
 
         <!-- (removed duplicate INSIGHTS + modal) -->
       </main>
+
+      <div id="noActiveProjectNotice" class="floatingNotice hidden" role="status" aria-live="polite">
+            <div class="title">Nenhum projeto ativo</div>
+            <div>Abra um projeto para carregar o dashboard. <a href="projects.html">Ir para projetos</a>.</div>
+      </div>
+      <div id="serverOfflineNotice" class="floatingNotice danger hidden" role="status" aria-live="polite">
+        <div class="title">Sem conexão com o servidor</div>
+        <div>Certifique-se de que o servidor está rodando ou verique a conexão em <a href="options.html">configurações</a>.</div>
+      </div>
     </div>
 
     <script type="module" src="dashboard.js"></script>
