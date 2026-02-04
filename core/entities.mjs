@@ -111,11 +111,31 @@ class Project {
   constructor(name, projectDir, data = null) {
     this.name = name;
     this.projectDir = projectDir;
+
+    // Default project schema (matches ui/projects.html form)
+    const defaults = {
+      id: name || null,
+      name: name || "",
+      description: "",
+      researchers: [],
+      objective: "",
+      criteria: "",
+      isCurrent: false,
+      color: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      papers: [],
+    };
+
     if (data && typeof data === 'object') {
-      this.project = data;
-      this.papers = Array.isArray(data.papers) ? data.papers : [];
+      // Merge provided data over defaults
+      this.project = { ...defaults, ...data };
+      // Ensure types for arrays
+      this.project.researchers = Array.isArray(this.project.researchers) ? this.project.researchers : (this.project.researchers ? String(this.project.researchers).split(',').map(s => s.trim()).filter(Boolean) : []);
+      this.project.papers = Array.isArray(this.project.papers) ? this.project.papers : [];
+      this.papers = this.project.papers;
     } else {
-      this.project = { papers: [] };
+      this.project = defaults;
       this.papers = [];
     }
   }
@@ -124,9 +144,13 @@ class Project {
     const p = paperData instanceof Paper ? paperData : new Paper(paperData);
     this.papers.push(p.toJSON());
     this.project.papers = this.papers;
+    this.project.updatedAt = new Date().toISOString();
   }
 
   toJSON() {
+    // Keep project up-to-date with papers
+    this.project.papers = this.papers;
+    this.project.updatedAt = new Date().toISOString();
     return this.project;
   }
 

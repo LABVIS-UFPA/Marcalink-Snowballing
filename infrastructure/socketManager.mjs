@@ -6,6 +6,7 @@ class WebsocketManager {
     this.onOpenListeners = [];
     this.tryAutoConnect();
     this.autoConnectionTime = 100;
+    this.responseHandlers = {};
   }
 
   buildWsUrl(url, port) {
@@ -57,6 +58,7 @@ class WebsocketManager {
 
     // Supress specific global error messages that bubble from WebSocket creation
     const suppressHandler = (ev) => {
+      console.log("suppressHandler invoked for:", ev);
       try {
         const msg = ev && (ev.message || (ev.error && ev.error.message)) || '';
         if (typeof msg === 'string' && msg.includes('WebSocket connection to') && msg.includes(fullUrl)) {
@@ -96,6 +98,15 @@ class WebsocketManager {
     };
 
     this.socket.onmessage = (e) => {
+      // tenta despachar para o handler registrado
+      try{
+        const msg = JSON.parse(e.data);
+        if(msg && msg.act && this.responseHandlers[msg.act] instanceof Function){
+          this.responseHandlers[msg.act](msg.payload);
+          return;
+        }
+      }catch(err){console.warn("Erro ao despachar mensagem recebida:", err);}
+      
       this.appendLog("MSG: " + e.data);
     };
 
@@ -112,20 +123,30 @@ class WebsocketManager {
     };
   }
 
-  send(data) {
+  send(data, responseHandler) {
+    console.log("WebsocketManager.send", data);
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-      this.socket.send(data);
+      this.setResponseHandler(data.act, responseHandler);
+      this.socket.send(JSON.stringify(data));
       this.appendLog("➡️ " + (typeof data === 'string' ? data : JSON.stringify(data)));
       return true;
     }
+    console.warn("WebSocket não está conectado. Não foi possível enviar a mensagem.");
     return false;
   }
 
   // Register a callback to be called when WebSocket opens/reconnects
   addOnOpenListener(callback) {
     if (typeof callback === 'function') {
+      // MELHORIA: Se já estiver conectado, executa imediatamente!
+      if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+        callback();
+      }
       this.onOpenListeners.push(callback);
     }
+  }
+  setResponseHandler(act, handler) {
+    this.responseHandlers[act] = handler;
   }
 
   tryAutoConnect() {

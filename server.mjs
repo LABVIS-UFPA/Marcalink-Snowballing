@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { storage } from "./infrastructure/storage.mjs";
 import { Project } from "./core/entities.mjs";
+import console from "console";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -45,7 +46,10 @@ wss.on("connection", (ws) => {
     if(messageHandler[act] instanceof Function) {
       const response = await messageHandler[act](payload.payload);
       if (response) {
-        ws.send(JSON.stringify(response));
+        console.log("📤 Enviando resposta:", response);
+        ws.send(JSON.stringify({ act, status: "ok", payload: response}));
+      }else{ 
+        ws.send(JSON.stringify({ act, status: "error", message: "No response from server" }));
       }
     }else{
       ws.send(JSON.stringify({ act: "unknown", status: "error", message: "Unknown act" }));
@@ -59,53 +63,55 @@ wss.on("connection", (ws) => {
   });
 });
 
-function verifyName(payload) {
-  if (!payload || !payload.name){
-    return { status: "error", message: "Missing project name. Please provide a name with variable 'name'." };
-  }else if(!/^[a-zA-Z0-9._-]+$/.test(payload.name)){
-    return { status: "error", message: "Invalid project name. Use only letters, numbers, dots, underscores, and hyphens." };
+function verifyProjectID(payload) {
+  if (!payload || !payload.projectID){
+    return { status: "error", message: "Missing project ID. Please provide an ID with variable 'projectID'." };
+  }else if(!/^[a-zA-Z0-9._-]+$/.test(payload.projectID)){
+    return { status: "error", message: "Invalid project ID. Use only letters, numbers, dots, underscores, and hyphens." };
   }else{
-    payload.name = payload.name.trim();
-    if (payload.name.length === 0){
-      return { status: "error", message: "Project name cannot be empty." };
+    payload.projectID = payload.projectID.trim();
+    if (payload.projectID.length === 0){
+      return { status: "error", message: "Project ID cannot be empty." };
     }
   }
 }
 
 const messageHandler = {
-  "new_project": async (payload) => {
-    return verifyName(payload) || await storage.saveProject(payload.name, { papers: [] });
-  },
   "open_project": async (payload) => {
-    return verifyName(payload) || await storage.loadProject(payload.name);
+    // Set the project as active in the Node storage strategy (keep in memory)
+    return verifyProjectID(payload) || await storage.openProject(payload.projectID);
   },
-  "list_project": async () => {
-    return { act: "list_project", payload: await storage.listProjects() };
-  },
-  "delete_project": async (payload) => {
-    return verifyName(payload) || await storage.deleteProject(payload.name);
-  },
-  "archive_project": async (payload) => {
-    return verifyName(payload) || await storage.archiveProject(payload.name);
-  },
-  "save_paper": async (payload) => {
-    return await storage.savePaper(payload.projectName, payload.paperId, payload.data);
-  },
-  "load_paper": async (payload) => {
-    return await storage.loadPaper(payload.projectName, payload.paperId);
-  },
-  "delete_paper": async (payload) => {
-    return await storage.deletePaper(payload.projectName, payload.paperId);
-  },
-  "list_papers": async (payload) => {
-    return await storage.listPapers(payload.projectName);
+  "get_active_project": async () => {
+    return await storage.getActiveProject();
   },
   "save_project": async (payload) => {
-    return await storage.saveProject(payload.projectName, payload.data);
+    return verifyProjectID(payload) || await storage.saveProject(payload.projectID, payload.data);
   },
   "load_project": async (payload) => {
-    return await storage.loadProject(payload.projectName);
+    return verifyProjectID(payload) || await storage.loadProject(payload.projectID);
   },
+  "list_projects": async () => {
+    return await storage.listProjects();
+  },
+  "delete_project": async (payload) => {
+    return verifyProjectID(payload) || await storage.deleteProject(payload.projectID);
+  },
+  "archive_project": async (payload) => {
+    return verifyProjectID(payload) || await storage.archiveProject(payload.projectID);
+  },
+  "save_paper": async (payload) => {
+    return await storage.savePaper(payload.projectID, payload.paperId, payload.data);
+  },
+  "load_paper": async (payload) => {
+    return await storage.loadPaper(payload.projectID, payload.paperId);
+  },
+  "delete_paper": async (payload) => {
+    return await storage.deletePaper(payload.projectID, payload.paperId);
+  },
+  "list_papers": async (payload) => {
+    return await storage.listPapers(payload.projectID);
+  },
+ 
   "storage_get": async (payload) => {
     const result = await storage.get(payload.keys);
     return { status: "ok", data: result };
