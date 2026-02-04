@@ -118,24 +118,25 @@ body{
   align-items:flex-start;
 }
 
+.topLeft{flex:1 1 0;min-width:0;max-width:100%}
 .topLeft h1{margin:0;font-size:18px;font-weight:900;letter-spacing:0.2px}
 .meta{font-size:12px;color:var(--muted);margin-top:4px}
 .metaLine{display:block}
 .metaResearchers{margin-bottom:4px}
-.metaDescWrap{display:flex;gap:6px;align-items:center;max-width:500px}
-.metaDesc{display:block;line-height:1.35;max-width:500px;flex:1;min-width:0}
+.metaDescWrap{display:flex;gap:6px;align-items:end;max-width:100%;width:100%;flex-wrap:nowrap;overflow:hidden}
+.metaDesc{display:block;line-height:1.35;flex:1 1 auto;min-width:0}
+.metaToggle{font-size:12px;flex:0 0 auto;white-space:nowrap}
 .metaDesc.clamped{
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
+  width: 500px;
 }
 .metaDesc.expanded{
   white-space:normal;
   overflow:visible;
   text-overflow:initial;
 }
-.metaToggle{font-size:12px}
-
 .topbar.metaExpanded .metaDescWrap,
 .topbar.metaExpanded .metaDesc{
   max-width:100%;
@@ -159,6 +160,34 @@ body{
   pointer-events:none;
   overflow:hidden;
 }
+
+.menu{position:relative}
+.menuPanel{
+  position:absolute;
+  right:0;
+  top: calc(100% + 8px);
+  min-width: 220px;
+  padding: 8px;
+  border:1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(11,15,23,0.92);
+  box-shadow: var(--shadow2);
+  display:none;
+  z-index: 50;
+}
+.menuPanel.open{display:flex;flex-direction:column;gap:6px}
+.menuItem{
+  text-align:left;
+  width:100%;
+  border:1px solid transparent;
+  background: rgba(255,255,255,0.04);
+  color: var(--text);
+  border-radius: 12px;
+  padding:10px 10px;
+  cursor:pointer;
+}
+.menuItem:hover{background: rgba(255,255,255,0.08); border-color: var(--border)}
+
 
 .btn{
   border:1px solid var(--border);

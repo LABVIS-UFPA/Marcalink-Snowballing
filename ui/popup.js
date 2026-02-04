@@ -28,16 +28,7 @@ document.getElementById("openProjects").addEventListener("click", () => {
   chrome.tabs.create({ url: chrome.runtime.getURL("ui/projects.html") });
 });
 
-// TODO: remover os botões de import e export do Popup.
-document.getElementById("exportJson").addEventListener("click", async () => {
-  // const state = await svatGetAll();
-  // const filename = `snowballing_${(state.project.id || "project").replace(/[^a-zA-Z0-9_-]/g, "_")}.json`;
-  // svatDownload(filename, JSON.stringify(state, null, 2));
-});
 
-document.getElementById("importJson").addEventListener("click", () => {
-  document.getElementById("file").click();
-});
 
 document.getElementById("file").addEventListener("change", async (e) => {
   // const file = e.target.files?.[0];
@@ -58,13 +49,6 @@ document.getElementById("file").addEventListener("change", async (e) => {
   // });
   // await refresh();
   // alert("Importado com sucesso.");
-});
-
-// TODO: Remover esse botão também.
-document.getElementById("clearData").addEventListener("click", async () => {
-  // if (!confirm("Isso vai apagar papers/iterações/conexões/critérios. Continuar?")) return;
-  // await chrome.storage.local.remove(Object.values(SVAT_KEYS));
-  // await refresh();
 });
 
 refresh();

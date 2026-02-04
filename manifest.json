@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Marcalink Snowballing",
+  "name": " iCipó  ",
   "version": "1.0",
-  "description": "Marca links no Google Scholar e gerencia um projeto de snowballing com dashboard e exportação.",
+  "description": "Marca links no Google Scholar e gerencia um projeto RSL com dashboard e exportação.",
   "permissions": ["contextMenus", "scripting", "storage", "unlimitedStorage", "downloads", "alarms"],
   "background": {
     "service_worker": "background.js",

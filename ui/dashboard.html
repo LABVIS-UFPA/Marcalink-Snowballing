@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Dashboard • Marcalink Snowballing</title>
+    <title>Dashboard •  iCipó</title>
     <link rel="stylesheet" href="dashboard.css" />
   </head>
   <body>
@@ -11,11 +11,9 @@
       
       <aside class="sidebar">
         <div class="brand">
-          <div class="logo">SVAT</div>
+          <div class="logo">iCipó</div>
           <div>
-
-          
-            <div class="brandTitle">Snowballing</div>
+            <div class="brandTitle">Dashboard</div>
             <div class="brandSub" id="brandSub">—</div>
           </div>
         </div>
@@ -31,8 +29,8 @@
         </nav>
 
         <div class="sideFooter">
+          <button id="btnProjects" class="ghost">📁 Projetos</button>
           <button id="btnOptions" class="ghost">⚙️ Configurações</button>
-          <button id="btnClear" class="ghost danger">🧹 Limpar dados</button>
           <div class="hint">Dica: marque artigos no Scholar com botão direito → “Marcar link” → categoria.</div>
         </div>
       </aside>
@@ -42,13 +40,6 @@
           <div class="topLeft">
             <h1 id="projectTitle">Projeto</h1>
             <div class="meta" id="projectMeta">—</div>
-          </div>
-          <div class="topActions">
-            <button id="btnImport" class="btn">⬆️ Importar JSON</button>
-            <button id="btnExportJson" class="btn">⬇️ Exportar JSON</button>
-            <button id="btnExportCsv" class="btn">⬇️ CSV</button>
-            <button id="btnExportBib" class="btn">⬇️ BibTeX</button>
-            <input id="fileImport" type="file" accept="application/json" style="display:none" />
           </div>
         </header>
 
@@ -112,6 +103,17 @@
             <select id="f_iteration" class="select">
               <option value="all">Iteração: todas</option>
             </select>
+
+            <div class="menu" id="downloadCitationsMenu">
+              <button id="btnDownloadCitations" class="btn">⬇️ Download Citations</button>
+              <div id="downloadCitationsPanel" class="menuPanel" aria-label="Menu de Download Citations">
+                <button class="menuItem" data-format="bibtex">BibTeX (.bib)</button>
+                <button class="menuItem" data-format="abnt">ABNT (texto)</button>
+                <button class="menuItem" data-format="apa">APA (texto)</button>
+                <button class="menuItem" data-format="endnote">EndNote / RIS (.ris)</button>
+              </div>
+            </div>
+
             <button id="btnBulkInclude" class="btn">Incluir</button>
             <button id="btnBulkExclude" class="btn">Excluir</button>
             <button id="btnBulkPending" class="btn">Pendente</button>
