@@ -84,6 +84,210 @@ function formatResearchers(value) {
   return '';
 }
 
+// ======= Categories & Highlighted Links (moved from options) =======
+function normalizeUrl(url) {
+  return (url || "").replace(/[\?\&]casa\_token=\S+/i, "");
+}
+
+function getLuminanceFromHex(hex) {
+  const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+  hex = (hex || '').replace(shorthandRegex, function (m, r, g, b) {
+    return r + r + g + g + b + b;
+  });
+
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!result) return 0;
+
+  let r = parseInt(result[1], 16) / 255;
+  let g = parseInt(result[2], 16) / 255;
+  let b = parseInt(result[3], 16) / 255;
+
+  r = r <= 0.03928 ? r / 12.92 : Math.pow((r + 0.055) / 1.055, 2.4);
+  g = g <= 0.03928 ? g / 12.92 : Math.pow((g + 0.055) / 1.055, 2.4);
+  b = b <= 0.03928 ? b / 12.92 : Math.pow((b + 0.055) / 1.055, 2.4);
+
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function loadCategories() {
+  const categoryList = document.getElementById("categoryList");
+  if (!categoryList) return;
+  storage.get("categories").then((data) => {
+    categoryList.innerHTML = "";
+    const categories = (data && data.categories) ? data.categories : {};
+    const names = Object.keys(categories).sort((a, b) => a.localeCompare(b));
+
+    function removeCategory(name) {
+      storage.get("categories").then(d => {
+        const cats = d.categories || {};
+        if (!cats[name]) return;
+        delete cats[name];
+        storage.set({ categories: cats }).then(() => {
+          chrome.runtime.sendMessage({ action: "updateContextMenu" });
+          loadCategories();
+        });
+      });
+    }
+
+    for (const category of names) {
+      const color = categories[category];
+
+      const li = document.createElement("li");
+      li.style.backgroundColor = color;
+      li.style.display = "flex";
+      li.style.alignItems = "center";
+      li.style.gap = "8px";
+      li.style.padding = "6px";
+
+      const label = document.createElement("span");
+      label.textContent = category;
+      label.style.fontWeight = "600";
+      label.style.flex = "1";
+      label.style.color = getLuminanceFromHex(color) < 0.5 ? "#fff" : "#000";
+
+      const meta = document.createElement("span");
+      meta.textContent = color;
+      meta.style.fontFamily = "monospace";
+      meta.style.fontSize = "12px";
+      meta.style.color = getLuminanceFromHex(color) < 0.5 ? "#fff" : "#000";
+
+      const btn = document.createElement("button");
+      btn.textContent = "Excluir";
+      btn.addEventListener("click", () => {
+        if (!confirm(`Excluir a categoria "${category}"?`)) return;
+        removeCategory(category);
+      });
+      btn.style.color = getLuminanceFromHex(color) < 0.5 ? "#fff" : "#000";
+      if (getLuminanceFromHex(color) >= 0.5) btn.classList.add("dark");
+
+      li.appendChild(label);
+      li.appendChild(meta);
+      li.appendChild(btn);
+
+      categoryList.appendChild(li);
+    }
+
+    chrome.runtime.sendMessage({ action: "updateContextMenu" });
+  });
+}
+
+function deleteMarkedLink(urlToDelete, done) {
+  const target = normalizeUrl(urlToDelete);
+  chrome.storage.local.get(["highlightedLinks", "svat_papers"], (data) => {
+    const highlightedLinks = data.highlightedLinks || {};
+    for (const k of Object.keys(highlightedLinks)) {
+      const nk = normalizeUrl(k);
+      if (k === urlToDelete || nk === target || nk.startsWith(target) || target.startsWith(nk)) {
+        delete highlightedLinks[k];
+      }
+    }
+
+    const papers = Array.isArray(data.svat_papers) ? data.svat_papers : [];
+    const filteredPapers = papers.filter((p) => normalizeUrl(p?.url) !== target);
+
+    storage.set({ highlightedLinks, svat_papers: filteredPapers }).then(() => { done && done(); });
+  });
+}
+
+function loadHighlightedLinks() {
+  const highlightedList = document.getElementById("highlightedList");
+  if (!highlightedList) return;
+  storage.get(["highlightedLinks", "svat_papers"]).then((data) => {
+    // storage.get wrapper may return an object or value; fallback to chrome.storage.local
+    if (!data || (typeof data === 'object' && !('highlightedLinks' in data))) {
+      chrome.storage.local.get(["highlightedLinks", "svat_papers"], (d) => {
+        renderHighlighted(d.highlightedLinks || {}, d.svat_papers || []);
+      });
+      return;
+    }
+
+    renderHighlighted(data.highlightedLinks || {}, data.svat_papers || []);
+  });
+
+  function renderHighlighted(links, papers) {
+    highlightedList.innerHTML = "";
+    const titleByUrl = new Map();
+    for (const p of papers || []) {
+      const nu = normalizeUrl(p?.url);
+      if (!nu) continue;
+      const t = (p?.title || "").trim();
+      if (t) titleByUrl.set(nu, t);
+    }
+
+    const q = (document.getElementById('highlightSearch')?.value || "").trim().toLowerCase();
+
+    const items = Object.keys(links || {})
+      .map((url) => {
+        const nurl = normalizeUrl(url);
+        const title = titleByUrl.get(nurl) || "";
+        return { url, nurl, title, color: links[url] };
+      })
+      .filter((it) => {
+        if (!q) return true;
+        return (it.url || "").toLowerCase().includes(q) || (it.title || "").toLowerCase().includes(q);
+      });
+
+    const removeBtn = document.getElementById('removeLinks');
+    if (removeBtn) removeBtn.style.display = items.length ? "inline-block" : "none";
+
+    for (const it of items) {
+      const li = document.createElement("li");
+      li.style.backgroundColor = it.color;
+      li.style.display = "flex";
+      li.style.alignItems = "center";
+      li.style.gap = "8px";
+      li.style.padding = "6px";
+
+      const linkWrap = document.createElement("div");
+      linkWrap.style.flex = "1";
+      linkWrap.style.display = "flex";
+      linkWrap.style.flexDirection = "column";
+      linkWrap.style.gap = "2px";
+
+      const a = document.createElement("a");
+      a.href = it.url;
+      a.textContent = it.title ? it.title : it.url;
+      a.target = "_blank";
+      a.rel = "noreferrer";
+      a.style.fontWeight = it.title ? "600" : "400";
+      a.style.overflowWrap = "anywhere";
+      a.style.color = getLuminanceFromHex(it.color) < 0.5 ? "#fff" : "#000";
+
+      const urlSmall = document.createElement("div");
+      if (it.title) {
+        urlSmall.textContent = it.url;
+        urlSmall.style.fontSize = "12px";
+        urlSmall.style.opacity = "0.85";
+        urlSmall.style.overflowWrap = "anywhere";
+      }
+
+      linkWrap.appendChild(a);
+      if (it.title) linkWrap.appendChild(urlSmall);
+
+      const meta = document.createElement("span");
+      meta.textContent = it.color;
+      meta.style.fontFamily = "monospace";
+      meta.style.fontSize = "12px";
+      meta.style.color = getLuminanceFromHex(it.color) < 0.5 ? "#fff" : "#000";
+
+      const btn = document.createElement("button");
+      btn.textContent = "Excluir";
+      btn.addEventListener("click", () => {
+        if (!confirm("Excluir este link marcado?")) return;
+        deleteMarkedLink(it.url, () => loadHighlightedLinks());
+      });
+      btn.style.color = getLuminanceFromHex(it.color) < 0.5 ? "#fff" : "#000";
+      if (getLuminanceFromHex(it.color) >= 0.5) btn.classList.add("dark");
+
+      li.appendChild(linkWrap);
+      li.appendChild(meta);
+      li.appendChild(btn);
+
+      highlightedList.appendChild(li);
+    }
+  }
+}
+
 function toggleNoActiveProjectNotice(show) {
   const el = document.getElementById('noActiveProjectNotice');
   if (!el) return;
@@ -1188,6 +1392,53 @@ function bindEvents() {
     renderAll();
   });
 
+  // Categories & Links (moved from options)
+  const addCategoryButton = document.getElementById("addCategory");
+  const categoryNameInput = document.getElementById("categoryName");
+  const categoryColorInput = document.getElementById("categoryColor");
+  const seedDefaultCategoriesButton = document.getElementById("seedDefaultCategories");
+  const highlightSearch = document.getElementById("highlightSearch");
+  const removeLinks = document.getElementById("removeLinks");
+
+  if (seedDefaultCategoriesButton) {
+    seedDefaultCategoriesButton.addEventListener("click", () => {
+      chrome.runtime.sendMessage({ action: "seedDefaultCategories" }, () => {
+        loadCategories();
+        alert("Categorias padrão de Snowballing criadas/mescladas!");
+      });
+    });
+  }
+
+  if (addCategoryButton) {
+    addCategoryButton.addEventListener("click", () => {
+      const name = (categoryNameInput?.value || "").trim();
+      const color = categoryColorInput?.value || "#000000";
+      if (!name) return;
+
+      storage.get("categories").then((data) => {
+        const categories = data.categories || {};
+        categories[name] = color;
+        storage.set({ categories }).then(() => {
+          if (categoryNameInput) categoryNameInput.value = "";
+          loadCategories();
+        });
+      });
+    });
+  }
+
+  if (removeLinks) {
+    removeLinks.addEventListener("click", () => {
+      if (!confirm("Tem certeza que deseja remover TODOS os links marcados?")) return;
+      chrome.storage.local.set({ highlightedLinks: {}, svat_papers: [] }, () => {
+        loadHighlightedLinks();
+      });
+    });
+  }
+
+  if (highlightSearch) {
+    highlightSearch.addEventListener("input", () => loadHighlightedLinks());
+  }
+
   // Citations
   $("#btnAddCitation").addEventListener("click", async () => {
     const from = $("#c_from").value;
@@ -1217,6 +1468,9 @@ async function init() {
   await loadState();
   bindEvents();
   renderAll();
+  // Load moved features
+  loadCategories();
+  loadHighlightedLinks();
   setActiveView("overview");
 }
 
