@@ -862,21 +862,87 @@ function filteredPapers() {
   });
 }
 
-function renderPapersTable() {
+async function renderPapersTable() {
   renderIterationFilterOptions();
   const tbody = $("#papersTable tbody");
   tbody.innerHTML = "";
 
-  const rows = filteredPapers().sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+  const f = getFilters();
+  // base papers filtered
+  const base = filteredPapers();
+
+  // fetch highlighted links and svat_papers
+  let hl = {};
+  let svat = [];
+  try {
+    const d = await storage.get(["highlightedLinks", "svat_papers"]);
+    if (d && ('highlightedLinks' in d || 'svat_papers' in d)) {
+      hl = d.highlightedLinks || {};
+      svat = Array.isArray(d.svat_papers) ? d.svat_papers : (d.svat_papers || []);
+    } else {
+      // fallback to chrome.storage
+      const prom = new Promise((res) => chrome.storage.local.get(["highlightedLinks","svat_papers"], res));
+      const d2 = await prom;
+      hl = d2.highlightedLinks || {};
+      svat = Array.isArray(d2.svat_papers) ? d2.svat_papers : (d2.svat_papers || []);
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  const titleByUrl = new Map();
+  for (const p of svat || []) {
+    const nu = normalizeStr(String(p?.url || ''));
+    if (!nu) continue;
+    const t = (p?.title || '').trim();
+    if (t) titleByUrl.set(nu, t);
+  }
+
+  // Map existing papers by normalized url to avoid duplicates
+  const present = new Set((state.papers || []).map(p => normalizeStr(p.url || '')));
+
+  const synth = [];
+  for (const url of Object.keys(hl || {})) {
+    const nurl = normalizeStr(url);
+    if (present.has(nurl)) continue;
+    const title = titleByUrl.get(nurl) || url;
+    const color = hl[url];
+    const item = {
+      id: `marked:${nurl}`,
+      title,
+      authorsRaw: '',
+      createdAt: '',
+      year: '',
+      origin: 'unknown',
+      iterationId: '',
+      status: 'pending',
+      criteriaId: '',
+      tags: [],
+      url: url,
+      highlightedColor: color,
+    };
+    // apply simple filters similar to filteredPapers
+    if (f.status !== "all" && (item.status || "pending") !== f.status) continue;
+    if (f.origin !== "all" && (item.origin || "unknown") !== f.origin) continue;
+    if (f.iteration !== "all" && (item.iterationId || "") !== f.iteration) continue;
+    if (f.q) {
+      const hay = normalizeStr(`${item.title || ''} ${item.authorsRaw || ''} ${(item.tags || []).join(' ')} ${item.year || ''} ${item.url || ''}`);
+      if (!hay.includes(f.q)) continue;
+    }
+    synth.push(item);
+  }
+
+  const rows = [...base, ...synth].sort((a, b) => (b.updatedAt || b.createdAt || "").localeCompare(a.updatedAt || a.createdAt || ""));
   for (const p of rows) {
     const tr = document.createElement("tr");
     const tags = Array.isArray(p.tags) ? p.tags.join(";") : "";
     const critVal = p.criteriaId || "";
+    const swatch = p.highlightedColor ? `<span style="display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:8px;vertical-align:middle;background:${escapeHtml(p.highlightedColor)}"></span>` : '';
 
     tr.innerHTML = `
       <td><input type="checkbox" class="rowCheck" data-id="${p.id}" /></td>
       <td>
-        <button class="linkBtn" data-show-history="${p.id}" title="Ver histórico">${escapeHtml(p.title || "(sem título)")}</button>
+        ${swatch}<button class="linkBtn" data-show-history="${p.id}" title="Ver histórico">${escapeHtml(p.title || "(sem título)")}</button>
         <div style="color:#666;font-size:11px;margin-top:4px">${escapeHtml(p.authorsRaw || "")} • ${escapeHtml(fmtDate(p.createdAt))}</div>
       </td>
       <td><input class="cellInput" data-field="year" data-id="${p.id}" value="${escapeHtml(p.year ?? "")}" placeholder="—" style="width:64px" /></td>

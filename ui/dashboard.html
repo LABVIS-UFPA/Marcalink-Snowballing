@@ -21,7 +21,6 @@
         <nav class="nav">
           <button class="navBtn active" data-view="overview">📌 Visão geral</button>
           <button class="navBtn" data-view="categories">🎨 Categorias</button>
-          <button class="navBtn" data-view="documents">📑 Documentos</button>
           <button class="navBtn" data-view="papers">📚 Artigos</button>
           <button class="navBtn" data-view="iterations">🔁 Iterações</button>
           <button class="navBtn" data-view="criteria">✅ Critérios</button>
@@ -324,33 +323,7 @@
           </div>
         </section>
 
-        <!-- DOCUMENTS / LINKS (moved from options) -->
-        <section class="view hidden" id="view_documents">
-          <div class="panelHeader">
-            <h2>Links marcados</h2>
-            <p>Gerencie os links que foram destacados no Scholar (e os registros do dashboard).</p>
-          </div>
-
-          <div class="card">
-            <div class="formRow" style="align-items:flex-end">
-              <div class="field" style="flex:1">
-                <label for="highlightSearch">Buscar</label>
-                <input type="text" id="highlightSearch" placeholder="Buscar por título ou URL…" />
-              </div>
-
-              <div class="field fieldActions">
-                <label>&nbsp;</label>
-                <button id="removeLinks" class="btn danger" style="display:none">Resetar todos</button>
-              </div>
-            </div>
-
-            <div class="listHead">
-              <h3>Lista de links</h3>
-              <span class="muted">Use <b>Excluir</b> para remover um link individual.</span>
-            </div>
-            <ul id="highlightedList" class="list"></ul>
-          </div>
-        </section>
+        <!-- Documents merged into Artigos view -->
 
         <!-- HISTORY MODAL (fallback) -->
         <div id="historyModal" class="modal hidden" role="dialog" aria-modal="true">
