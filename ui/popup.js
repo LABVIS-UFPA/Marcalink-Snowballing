@@ -30,25 +30,6 @@ document.getElementById("openProjects").addEventListener("click", () => {
 
 
 
-document.getElementById("file").addEventListener("change", async (e) => {
-  // const file = e.target.files?.[0];
-  // if (!file) return;
-  // const text = await file.text();
-  // const parsed = JSON.parse(text);
-  // // Minimal validation
-  // if (!parsed || typeof parsed !== "object" || !parsed.project || !Array.isArray(parsed.papers)) {
-  //   alert("JSON inválido: esperado objeto com project e papers.");
-  //   return;
-  // }
-  // await svatSetAll({
-  //   project: parsed.project,
-  //   papers: parsed.papers || [],
-  //   iterations: parsed.iterations || [{ id: parsed.project.currentIterationId || "I1", type: "seed", mode: "seed", createdAt: svatNowIso() }],
-  //   citations: parsed.citations || [],
-  //   criteria: parsed.criteria || {},
-  // });
-  // await refresh();
-  // alert("Importado com sucesso.");
-});
+// File import removed — no file input in popup.html per user request.
 
 refresh();
