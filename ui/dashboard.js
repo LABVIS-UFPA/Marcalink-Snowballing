@@ -1046,6 +1046,45 @@ async function bulkSet(field, value) {
   renderAll();
 }
 
+async function bulkDeleteMarkedSelected() {
+  const ids = selectedPaperIds();
+  if (!ids.length) {
+    alert("Selecione pelo menos 1 artigo.");
+    return;
+  }
+  const targets = ids.filter(id => id && id.startsWith("marked:")).map(id => id.slice(7));
+  if (!targets.length) {
+    alert("Nenhum artigo marcado selecionado.");
+    return;
+  }
+  if (!confirm(`Remover ${targets.length} link(s) marcado(s)?`)) return;
+
+  const d = await new Promise(res => chrome.storage.local.get(["highlightedLinks", "svat_papers"], res));
+  const highlightedLinks = d.highlightedLinks || {};
+  const svat_papers = Array.isArray(d.svat_papers) ? d.svat_papers : [];
+
+  for (const t of targets) {
+    for (const k of Object.keys(highlightedLinks)) {
+      try {
+        if (normalizeStr(k) === t || normalizeUrl(k) === t || normalizeStr(normalizeUrl(k)) === t) {
+          delete highlightedLinks[k];
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+  }
+
+  const filteredPapers = svat_papers.filter(p => {
+    const nu = normalizeStr(p?.url || "");
+    return !targets.includes(nu);
+  });
+
+  await storage.set({ highlightedLinks, svat_papers: filteredPapers });
+  loadHighlightedLinks();
+  renderPapersTable();
+}
+
 function renderIterations() {
   const tbody = $("#iterationsTable tbody");
   tbody.innerHTML = "";
@@ -1423,6 +1462,7 @@ function bindEvents() {
   $("#btnBulkExclude").addEventListener("click", () => bulkSet("status", "excluded"));
   $("#btnBulkPending").addEventListener("click", () => bulkSet("status", "pending"));
   $("#btnBulkDuplicate").addEventListener("click", () => bulkSet("status", "duplicate"));
+  $("#btnBulkDeleteMarked").addEventListener("click", () => bulkDeleteMarkedSelected());
 
   // Iterations
   $("#btnAddIteration").addEventListener("click", async () => {
