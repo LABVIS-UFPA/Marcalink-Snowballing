@@ -35,7 +35,7 @@ function escapeRegExp(value) {
 }
 
 export function slugify(input, options = {}) {
-    const separator = options.separator || "-";
+    const separator = options.separator || "_";
     const normalized = String(input || "")
         .toLowerCase()
         .normalize("NFKD")

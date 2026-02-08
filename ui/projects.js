@@ -12,6 +12,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const projectDescriptionInput = document.getElementById('projectDescription');
   const projectResearchersInput = document.getElementById('projectResearchers');
   const projectObjectiveInput = document.getElementById('projectObjective');
+  const projectIdPreview = document.getElementById('projectIdPreview');
+  const projectIdStatus = document.getElementById('projectIdStatus');
   const projectList = document.getElementById('projectList');
   const workarea = document.querySelector('.workarea');
 
@@ -99,6 +101,8 @@ document.addEventListener('DOMContentLoaded', () => {
     editMode = true;
     editingProjectID = project.id;
     projectNameInput.value = project.name || '';
+    if (projectIdPreview) projectIdPreview.value = project.id || '';
+    if (projectIdStatus) { projectIdStatus.textContent = ''; projectIdStatus.style.color = 'inherit'; }
     projectDescriptionInput.value = project.description || '';
     projectResearchersInput.value = (project.researchers || []).join(', ');
     projectObjectiveInput.value = project.objective || '';
@@ -113,6 +117,8 @@ document.addEventListener('DOMContentLoaded', () => {
     editingProjectID = null;
     // clear inputs
     projectNameInput.value = '';
+    if (projectIdPreview) projectIdPreview.value = '';
+    if (projectIdStatus) projectIdStatus.textContent = '';
     projectDescriptionInput.value = '';
     projectResearchersInput.value = '';
     projectObjectiveInput.value = '';
@@ -131,6 +137,23 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!items.length) return placeholder();
     for (const it of items) projectList.appendChild(makeProjectItem(it));
   }
+
+  function updateIdPreview() {
+    if (!projectIdPreview) return;
+    const name = (projectNameInput.value || '').trim();
+    const base = slugify(name, { separator: '_', fallback: '' });
+    projectIdPreview.value = base;
+    if (!projectIdStatus) return;
+    if (!base) {
+      projectIdStatus.textContent = '';
+      return;
+    }
+    const inUse = projects.some((p) => p.id === base && (!editingProjectID || p.id !== editingProjectID));
+    projectIdStatus.textContent = inUse ? 'em uso' : 'disponível';
+    projectIdStatus.style.color = inUse ? 'crimson' : 'green';
+  }
+
+  projectNameInput.addEventListener('input', () => updateIdPreview());
 
   function ensureUniqueId(base) {
     let id = base;
@@ -156,6 +179,8 @@ document.addEventListener('DOMContentLoaded', () => {
     projectDescriptionInput.value = '';
     projectResearchersInput.value = '';
     projectObjectiveInput.value = '';
+    if (projectIdPreview) projectIdPreview.value = '';
+    if (projectIdStatus) projectIdStatus.textContent = '';
   }
 
   openCreateBtn.addEventListener('click', () => {
@@ -192,11 +217,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } else {
         // Create new project
-        const baseId = slugify(name, {
-          separator: '_',
-          fallback: () => `p_${Date.now().toString(36)}`,
-        });
-        const id = ensureUniqueId(baseId);
+        const suggested = projectIdPreview && projectIdPreview.value ? (projectIdPreview.value || '').trim() : '';
+        const baseId = suggested || slugify(name, { separator: '_', fallback: '' });
+        // if baseId is empty, fall back to generated id
+        const finalId = baseId || `p_${Date.now().toString(36)}`;
+        const inUse = projects.some((p) => p.id === finalId);
+        if (inUse) {
+          return alert('Erro: ID já em uso. Altere o nome para gerar um ID diferente.');
+        }
+        const id = finalId;
         const p = {
           id,
           name,
