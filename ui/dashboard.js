@@ -937,12 +937,11 @@ async function renderPapersTable() {
     const tr = document.createElement("tr");
     const tags = Array.isArray(p.tags) ? p.tags.join(";") : "";
     const critVal = p.criteriaId || "";
-    const swatch = p.highlightedColor ? `<span style="display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:8px;vertical-align:middle;background:${escapeHtml(p.highlightedColor)}"></span>` : '';
 
     tr.innerHTML = `
       <td><input type="checkbox" class="rowCheck" data-id="${p.id}" /></td>
       <td>
-        ${swatch}<button class="linkBtn" data-show-history="${p.id}" title="Ver histórico">${escapeHtml(p.title || "(sem título)")}</button>
+        <button class="linkBtn" data-show-history="${p.id}" title="Ver histórico">${escapeHtml(p.title || "(sem título)")}</button>
         <div style="color:#666;font-size:11px;margin-top:4px">${escapeHtml(p.authorsRaw || "")} • ${escapeHtml(fmtDate(p.createdAt))}</div>
       </td>
       <td><input class="cellInput" data-field="year" data-id="${p.id}" value="${escapeHtml(p.year ?? "")}" placeholder="—" style="width:64px" /></td>
@@ -977,6 +976,22 @@ async function renderPapersTable() {
       <td><a class="link" href="${escapeHtml(p.url)}" target="_blank" rel="noreferrer">Abrir</a></td>
     `;
     tbody.appendChild(tr);
+    // If item has a highlighted color, paint the title text and remove any swatch
+    try {
+      const color = p.highlightedColor || p.color || p.highlightColor;
+      if (color) {
+        const btn = tr.querySelector('button.linkBtn');
+        if (btn) {
+          btn.style.color = color;
+          // Ensure adequate contrast: apply subtle text-shadow for light/dark extremes
+          const lum = getLuminanceFromHex(color);
+          if (lum > 0.7) btn.style.textShadow = '0 0 1px rgba(0,0,0,0.6)';
+          else if (lum < 0.15) btn.style.textShadow = '0 0 1px rgba(255,255,255,0.08)';
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
   }
 
   // Bind inputs
