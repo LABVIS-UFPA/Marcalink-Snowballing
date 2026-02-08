@@ -51,30 +51,35 @@ function ensureDefaultCategories(cb) {
 }
 
 function createContextMenu() {
+  // Remove existing menus and recreate safely (ignore duplicate-id race warnings)
   chrome.contextMenus.removeAll(() => {
-    chrome.contextMenus.create({
-      id: "highlightLink",
-      title: "Marcar link",
-      contexts: ["link"]
-    });
+    const safeCreate = (opts) => {
+      try {
+        chrome.contextMenus.create(opts, () => {
+          if (chrome.runtime.lastError) {
+            const msg = String(chrome.runtime.lastError.message || "").toLowerCase();
+            if (msg.includes('duplicate id') || msg.includes('cannot create item with duplicate id')) {
+              // ignore duplicate menu creation race
+              return;
+            }
+            console.error('contextMenus.create error', chrome.runtime.lastError);
+          }
+        });
+      } catch (e) {
+        console.warn('safeCreate failed', e);
+      }
+    };
+
+    safeCreate({ id: "highlightLink", title: "Marcar link", contexts: ["link"] });
 
     chrome.storage.local.get(["categories"], (data) => {
       const categories = data.categories || {};
       for (const category in categories) {
-        chrome.contextMenus.create({
-          parentId: "highlightLink",
-          id: `highlight_${category}`,
-          title: category,
-          contexts: ["link"]
-        });
+        safeCreate({ parentId: "highlightLink", id: `highlight_${category}`, title: category, contexts: ["link"] });
       }
     });
 
-    chrome.contextMenus.create({
-      id: "removeHighlight",
-      title: "Remover marcação",
-      contexts: ["link"]
-    });
+    safeCreate({ id: "removeHighlight", title: "Remover marcação", contexts: ["link"] });
   });
 }
 
