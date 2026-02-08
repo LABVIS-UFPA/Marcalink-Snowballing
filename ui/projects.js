@@ -1,4 +1,5 @@
 import { storage } from '../infrastructure/storage.mjs';
+import { slugify } from '../core/utils.mjs';
 
 document.addEventListener('DOMContentLoaded', () => {
   const filterInput = document.getElementById('newProjectName');
@@ -11,7 +12,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const projectDescriptionInput = document.getElementById('projectDescription');
   const projectResearchersInput = document.getElementById('projectResearchers');
   const projectObjectiveInput = document.getElementById('projectObjective');
-  const projectCriteriaInput = document.getElementById('projectCriteria');
+  const projectIdPreview = document.getElementById('projectIdPreview');
+  const projectIdStatus = document.getElementById('projectIdStatus');
   const projectList = document.getElementById('projectList');
   const workarea = document.querySelector('.workarea');
 
@@ -99,10 +101,11 @@ document.addEventListener('DOMContentLoaded', () => {
     editMode = true;
     editingProjectID = project.id;
     projectNameInput.value = project.name || '';
+    if (projectIdPreview) projectIdPreview.value = project.id || '';
+    if (projectIdStatus) { projectIdStatus.textContent = ''; projectIdStatus.style.color = 'inherit'; }
     projectDescriptionInput.value = project.description || '';
     projectResearchersInput.value = (project.researchers || []).join(', ');
     projectObjectiveInput.value = project.objective || '';
-    projectCriteriaInput.value = project.criteria || '';
     createConfirmBtn.textContent = 'Salvar';
     if (createSidenavTitle) createSidenavTitle.textContent = 'Edite o projeto';
     openSidenav();
@@ -114,10 +117,11 @@ document.addEventListener('DOMContentLoaded', () => {
     editingProjectID = null;
     // clear inputs
     projectNameInput.value = '';
+    if (projectIdPreview) projectIdPreview.value = '';
+    if (projectIdStatus) projectIdStatus.textContent = '';
     projectDescriptionInput.value = '';
     projectResearchersInput.value = '';
     projectObjectiveInput.value = '';
-    projectCriteriaInput.value = '';
     createConfirmBtn.textContent = 'Criar projeto';
     if (createSidenavTitle) createSidenavTitle.textContent = 'Criar projeto';
     openSidenav();
@@ -134,9 +138,22 @@ document.addEventListener('DOMContentLoaded', () => {
     for (const it of items) projectList.appendChild(makeProjectItem(it));
   }
 
-  function slugifyName(name) {
-    return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') || `p_${Date.now().toString(36)}`;
+  function updateIdPreview() {
+    if (!projectIdPreview) return;
+    const name = (projectNameInput.value || '').trim();
+    const base = slugify(name, { separator: '_', fallback: '' });
+    projectIdPreview.value = base;
+    if (!projectIdStatus) return;
+    if (!base) {
+      projectIdStatus.textContent = '';
+      return;
+    }
+    const inUse = projects.some((p) => p.id === base && (!editingProjectID || p.id !== editingProjectID));
+    projectIdStatus.textContent = inUse ? 'em uso' : 'disponível';
+    projectIdStatus.style.color = inUse ? 'crimson' : 'green';
   }
+
+  projectNameInput.addEventListener('input', () => updateIdPreview());
 
   function ensureUniqueId(base) {
     let id = base;
@@ -162,7 +179,8 @@ document.addEventListener('DOMContentLoaded', () => {
     projectDescriptionInput.value = '';
     projectResearchersInput.value = '';
     projectObjectiveInput.value = '';
-    projectCriteriaInput.value = '';
+    if (projectIdPreview) projectIdPreview.value = '';
+    if (projectIdStatus) projectIdStatus.textContent = '';
   }
 
   openCreateBtn.addEventListener('click', () => {
@@ -183,7 +201,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!researchers) return alert('Informe ao menos um pesquisador.');
 
     const objective = (projectObjectiveInput.value || '').trim();
-    const criteria = (projectCriteriaInput.value || '').trim();
 
     try {
       if (editMode && editingProjectID) {
@@ -195,21 +212,26 @@ document.addEventListener('DOMContentLoaded', () => {
           p.description = desc;
           p.researchers = researchers.split(',').map((s) => s.trim()).filter(Boolean);
           p.objective = objective;
-          p.criteria = criteria;
           await storage.saveProject(p.id, p);
           // renderProjects(filterInput.value || '');
         }
       } else {
         // Create new project
-        const baseId = slugifyName(name);
-        const id = ensureUniqueId(baseId);
+        const suggested = projectIdPreview && projectIdPreview.value ? (projectIdPreview.value || '').trim() : '';
+        const baseId = suggested || slugify(name, { separator: '_', fallback: '' });
+        // if baseId is empty, fall back to generated id
+        const finalId = baseId || `p_${Date.now().toString(36)}`;
+        const inUse = projects.some((p) => p.id === finalId);
+        if (inUse) {
+          return alert('Erro: ID já em uso. Altere o nome para gerar um ID diferente.');
+        }
+        const id = finalId;
         const p = {
           id,
           name,
           description: desc,
           researchers: researchers.split(',').map((s) => s.trim()).filter(Boolean),
           objective,
-          criteria,
           isCurrent: false,
         };
         await storage.saveProject(p.id, p);

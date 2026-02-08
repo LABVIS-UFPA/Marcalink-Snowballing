@@ -14,11 +14,43 @@ export function normalizeStr(s) {
     return (s || "").toString().toLowerCase();
 }
 
+export function checkArray(arr) {
+    return Array.isArray(arr) ? arr : [];
+}
+
+export function mapToJSON(arr) {
+    const a = checkArray(arr);
+    return a.map(x => x && typeof x.toJSON === 'function' ? x.toJSON() : x);
+}
+
 export function tokenSet(title) {
     return new Set(normalizeStr(title)
         .replace(/[^a-z0-9\s]/g, " ")
         .split(/\s+/)
         .filter(w => w && w.length >= 3));
+}
+
+function escapeRegExp(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+export function slugify(input, options = {}) {
+    const separator = options.separator || "_";
+    const normalized = String(input || "")
+        .toLowerCase()
+        .normalize("NFKD")
+        .replace(/[^a-z0-9\s]+/g, " ")
+        .trim()
+        .replace(/\s+/g, separator);
+
+    if (normalized) {
+        const sep = escapeRegExp(separator);
+        return normalized.replace(new RegExp(`${sep}+`, "g"), separator);
+    }
+
+    if (typeof options.fallback === "function") return options.fallback();
+    if (typeof options.fallback === "string") return options.fallback;
+    return "";
 }
 
 export function jaccard(a, b) {

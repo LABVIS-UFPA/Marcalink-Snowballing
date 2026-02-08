@@ -109,6 +109,12 @@
             </div>
 
             <div class="formRow">
+              <label for="projectIdPreview">ID do projeto <span id="projectIdStatus" class="muted" style="font-size:12px;margin-top:6px"></span></label>
+              <input type="text" id="projectIdPreview" readonly placeholder="Pré-visualização do ID" disabled />
+              
+            </div>
+
+            <div class="formRow">
               <label for="projectDescription">Descrição *</label>
               <textarea id="projectDescription" rows="3" placeholder="Breve descrição"></textarea>
             </div>
@@ -123,10 +129,6 @@
               <textarea id="projectObjective" rows="2" placeholder="Objetivo do projeto"></textarea>
             </div>
 
-            <div class="formRow">
-              <label for="projectCriteria">Critérios de inclusão/ exclusão</label>
-              <textarea id="projectCriteria" rows="3" placeholder="Critérios"></textarea>
-            </div>
 
             <div class="formActions">
               <button id="cancelCreateBtn" class="btn">Cancelar</button>
