@@ -1,0 +1,22 @@
+name: Move PR to Review
+on:
+  pull_request:
+    types: [ready_for_review]
+
+jobs:
+  move-card:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mover Card do Projeto
+        uses: leonsteinhaeuser/project-beta-automations@v2.2.1
+        with:
+          # O segredo que você criou no passo 2
+          gh_token: ${{ secrets.PROJECT_AUTOMATION_TOKEN }}
+          # Nome da sua organização
+          organization: "LABVIS-UFPA"
+          # Número do projeto (visto na URL)
+          project_id: 2
+          # O ID do PR que disparou a action
+          resource_node_id: ${{ github.event.pull_request.node_id }}
+          # Nome da coluna de destino
+          status_value: "Review" 
